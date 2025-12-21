@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QLabel
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap
 
 class OverviewWidget(QWidget):
     def __init__(self, parent=None):
@@ -11,13 +12,21 @@ class OverviewWidget(QWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignCenter)
         
+        # Logo
+        logo_label = QLabel()
+        logo_pixmap = QPixmap("assets/localflow_64.png")
+        logo_label.setPixmap(logo_pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
+        logo_label.setAlignment(Qt.AlignCenter)
+        logo_label.setStyleSheet("margin-bottom: 10px;")
+        layout.addWidget(logo_label, alignment=Qt.AlignCenter)
+        
         # Title
         title_label = QLabel("欢迎使用 LocalFlow")
         title_label.setStyleSheet("""
             QLabel {
                 font-size: 24px;
                 font-weight: bold;
-                color: #333333;
+                color: #2c3e50;
                 margin-bottom: 20px;
             }
         """)
