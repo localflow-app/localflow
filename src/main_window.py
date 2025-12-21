@@ -1,7 +1,9 @@
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QApplication, QWidget, QHBoxLayout, QToolBar, QTabWidget, QStatusBar
+from PySide6.QtWidgets import QMainWindow, QWidget, QToolBar, QTabWidget, QStatusBar
 from PySide6.QtCore import Qt, QSize
 
+from src.views.overview_widget import OverviewWidget
+from src.views.workflow_tab_widget import WorkflowTabWidget
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -9,6 +11,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("LocalFlow")
         self.setGeometry(300, 150, 785, 603)
         self.setWindowIcon(QIcon("assets/localflow_64.png"))
+        self.workflow_count = 0
 
         self._setup_layout()
 
@@ -30,7 +33,10 @@ class MainWindow(QMainWindow):
         # Center Area
         self.tabs = QTabWidget()
         self.setCentralWidget(self.tabs)
-        self.tabs.addTab(QWidget(), "Overview")
+        
+        # Create Overview Tab
+        overview_widget = OverviewWidget(self)
+        self.tabs.addTab(overview_widget, "Overview")
 
         # Right Area
         # Left Area
@@ -112,4 +118,15 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
             }
             """)
-
+    
+    def add_workflow_tab(self):
+        """Add a new workflow tab"""
+        self.workflow_count += 1
+        workflow_name = f"工作流 {self.workflow_count}"
+        workflow_widget = WorkflowTabWidget(workflow_name, self)
+        
+        # Add the new workflow tab
+        index = self.tabs.addTab(workflow_widget, workflow_name)
+        
+        # Change the current tab to the new one
+        self.tabs.setCurrentIndex(index)
