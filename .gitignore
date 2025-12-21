@@ -209,3 +209,6 @@ __marimo__/
 
 # Pycharm
 .idea/
+
+# Drafts
+drafts/*
