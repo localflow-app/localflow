@@ -1,9 +1,10 @@
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QMainWindow, QWidget, QToolBar, QTabWidget, QStatusBar
+from PySide6.QtWidgets import QMainWindow, QWidget, QToolBar, QTabWidget, QStatusBar, QSizePolicy
 from PySide6.QtCore import Qt, QSize
 
 from src.views.overview_widget import OverviewWidget
 from src.views.workflow_tab_widget import WorkflowTabWidget
+from src.dialogs.settings_dialog import SettingsDialog
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -29,6 +30,15 @@ class MainWindow(QMainWindow):
         self.setToolbarStyle(toolbar, "LeftToolbar")
 
         action_note = toolbar.addAction(QIcon("assets/icons/node.png"), "Node")
+        
+        # Add spacer to push settings button to bottom
+        spacer = QWidget()
+        spacer.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        toolbar.addWidget(spacer)
+        
+        # Add settings button at bottom
+        action_settings = toolbar.addAction(QIcon("assets/icons/settings.png"), "Settings")
+        action_settings.triggered.connect(self._open_settings)
 
         # Center Area
         self.tabs = QTabWidget()
@@ -130,3 +140,8 @@ class MainWindow(QMainWindow):
         
         # Change the current tab to the new one
         self.tabs.setCurrentIndex(index)
+    
+    def _open_settings(self):
+        """Open settings dialog"""
+        dialog = SettingsDialog(self)
+        dialog.exec()
