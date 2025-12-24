@@ -5,6 +5,7 @@ from PySide6.QtGui import QIcon, QPixmap, QFont
 import os
 import json
 import shutil
+import sys
 from pathlib import Path
 
 
@@ -122,7 +123,7 @@ class OverviewWidget(QWidget):
         
         # Logo
         logo_label = QLabel()
-        logo_pixmap = QPixmap("assets/localflow_64.png")
+        logo_pixmap = QPixmap(self._get_resource_path("assets/localflow_64.png"))
         logo_label.setPixmap(logo_pixmap.scaled(64, 64, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         logo_label.setAlignment(Qt.AlignCenter)
         header_layout.addWidget(logo_label)
@@ -215,6 +216,35 @@ class OverviewWidget(QWidget):
         main_layout.addWidget(scroll)
         
         self.setLayout(main_layout)
+    
+    def _get_resource_path(self, relative_path):
+        """获取资源文件的绝对路径，支持开发和打包环境"""
+        # 开发环境
+        dev_path = Path(relative_path)
+        if dev_path.exists():
+            return str(dev_path)
+        
+        # 打包环境（PyInstaller）
+        if hasattr(sys, '_MEIPASS'):
+            base_path = Path(sys._MEIPASS)
+            resource_path = base_path / relative_path
+        else:
+            # 如果是其他情况，尝试相对于可执行文件
+            base_path = Path(sys.executable).parent
+            resource_path = base_path / relative_path
+            
+            # 如果在_internal目录中，需要调整路径
+            if not resource_path.exists():
+                internal_path = base_path.parent / "_internal" / relative_path
+                if internal_path.exists():
+                    resource_path = internal_path
+        
+        # 如果资源文件存在，返回路径
+        if resource_path.exists():
+            return str(resource_path)
+        
+        # 最后的备选方案
+        return relative_path
     
     def _load_workflows(self):
         """加载已保存的工作流"""

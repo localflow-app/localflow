@@ -1,4 +1,6 @@
 from PySide6.QtGui import QIcon, QAction
+from pathlib import Path
+import sys
 from PySide6.QtWidgets import QMainWindow, QWidget, QToolBar, QTabWidget, QStatusBar, QSizePolicy, QDockWidget
 from PySide6.QtCore import Qt, QSize
 
@@ -14,7 +16,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("LocalFlow")
         self.setGeometry(300, 150, 785, 603)
-        self.setWindowIcon(QIcon("assets/localflow_64.png"))
+        self.setWindowIcon(QIcon(self._get_resource_path("assets/localflow_64.png")))
         self.workflow_count = 0
         
         # 初始化配置管理器
@@ -36,7 +38,7 @@ class MainWindow(QMainWindow):
         self.setToolbarStyle(toolbar, "LeftToolbar")
 
         # 节点浏览器按钮
-        action_node_browser = toolbar.addAction(QIcon("assets/icons/node.png"), "节点浏览器")
+        action_node_browser = toolbar.addAction(QIcon(self._get_resource_path("assets/icons/node.png")), "节点浏览器")
         action_node_browser.triggered.connect(self._toggle_node_browser)
         
         # Add spacer to push settings button to bottom
@@ -45,7 +47,7 @@ class MainWindow(QMainWindow):
         toolbar.addWidget(spacer)
         
         # Add settings button at bottom
-        action_settings = toolbar.addAction(QIcon("assets/icons/settings.png"), "Settings")
+        action_settings = toolbar.addAction(QIcon(self._get_resource_path("assets/icons/settings.png")), "Settings")
         action_settings.triggered.connect(self._open_settings)
 
         # Center Area - Tabs
@@ -72,7 +74,7 @@ class MainWindow(QMainWindow):
         self.setToolbarStyle(toolbar_right, "RightToolbar")
 
         # 节点属性按钮
-        action_node_props = toolbar_right.addAction(QIcon("assets/icons/detail.png"), "节点属性")
+        action_node_props = toolbar_right.addAction(QIcon(self._get_resource_path("assets/icons/detail.png")), "节点属性")
         action_node_props.triggered.connect(self._toggle_node_properties)
 
         # Status Bar
@@ -486,6 +488,35 @@ class MainWindow(QMainWindow):
         
         # 实时保存状态
         self._save_dock_states()
+    
+    def _get_resource_path(self, relative_path):
+        """获取资源文件的绝对路径，支持开发和打包环境"""
+        # 开发环境
+        dev_path = Path(relative_path)
+        if dev_path.exists():
+            return str(dev_path)
+        
+        # 打包环境（PyInstaller）
+        if hasattr(sys, '_MEIPASS'):
+            base_path = Path(sys._MEIPASS)
+            resource_path = base_path / relative_path
+        else:
+            # 如果是其他情况，尝试相对于可执行文件
+            base_path = Path(sys.executable).parent
+            resource_path = base_path / relative_path
+            
+            # 如果在_internal目录中，需要调整路径
+            if not resource_path.exists():
+                internal_path = base_path.parent / "_internal" / relative_path
+                if internal_path.exists():
+                    resource_path = internal_path
+        
+        # 如果资源文件存在，返回路径
+        if resource_path.exists():
+            return str(resource_path)
+        
+        # 最后的备选方案
+        return relative_path
     
     def _open_settings(self):
         """Open settings dialog"""
