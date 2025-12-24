@@ -1,0 +1,28 @@
+{
+  "workflow_name": "初始验证2",
+  "nodes": [
+    {
+      "node_id": "node_1766587998763",
+      "node_type": "variable_assign",
+      "config": {},
+      "inputs": [],
+      "outputs": [],
+      "position": {
+        "x": -124.0,
+        "y": -86.0
+      }
+    },
+    {
+      "node_id": "node_1766588000083",
+      "node_type": "variable_calc",
+      "config": {},
+      "inputs": [],
+      "outputs": [],
+      "position": {
+        "x": -161.0,
+        "y": 52.0
+      }
+    }
+  ],
+  "edges": []
+}

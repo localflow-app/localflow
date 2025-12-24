@@ -1,0 +1,18 @@
+{
+  "dock_states": {
+    "node_browser": {
+      "visible": true,
+      "width": 300
+    },
+    "node_properties": {
+      "visible": true,
+      "width": 300
+    }
+  },
+  "window_geometry": {
+    "x": 0,
+    "y": 23,
+    "width": 1920,
+    "height": 1009
+  }
+}
