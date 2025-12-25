@@ -93,11 +93,23 @@ class SettingsDialog(QDialog):
         mirror_layout = QHBoxLayout()
         mirror_label = QLabel("镜像地址:")
         mirror_label.setFixedWidth(80)
-        self.mirror_input = QLineEdit()
-        self.mirror_input.setPlaceholderText("未配置镜像")
-        self.mirror_input.setReadOnly(True)
+        self.mirror_combo = QComboBox()
+        self.mirror_combo.setEditable(True)  # 允许用户输入自定义镜像
+        self.mirror_combo.setMinimumWidth(300)
+        self.mirror_combo.currentTextChanged.connect(self._on_mirror_changed)
+        
+        # 预设的常用镜像
+        self.mirror_combo.addItems([
+            "默认镜像",
+            "https://pypi.tuna.tsinghua.edu.cn/simple",
+            "https://mirrors.aliyun.com/pypi/simple", 
+            "https://pypi.mirrors.ustc.edu.cn/simple",
+            "https://mirrors.cloud.tencent.com/pypi/simple",
+            "自定义镜像..."
+        ])
+        
         mirror_layout.addWidget(mirror_label)
-        mirror_layout.addWidget(self.mirror_input)
+        mirror_layout.addWidget(self.mirror_combo)
         uv_layout.addLayout(mirror_layout)
         
         # Status
@@ -360,7 +372,8 @@ class SettingsDialog(QDialog):
         
         # Import UVManager here to avoid circular imports
         try:
-            from ..core.uv_manager import UVManager
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from core.uv_manager import UVManager
             uv_manager = UVManager()
             self.uv_paths = uv_manager.find_uv_installations()
             
@@ -387,6 +400,9 @@ class SettingsDialog(QDialog):
                         display_text = uv_path
                     
                     self.path_combo.addItem(display_text, uv_path)
+                
+                # 添加自定义选项
+                self.path_combo.addItem("自定义路径...", "custom")
                 
                 # 启用下拉框并设置默认选择第一个
                 self.path_combo.setEnabled(True)
@@ -419,21 +435,34 @@ class SettingsDialog(QDialog):
     def _detect_mirror(self):
         """Detect uv mirror configuration"""
         try:
-            # Check environment variable
-            mirror = os.environ.get("UV_INDEX_URL", "")
+            # 首先检查 uv 配置文件
+            config_file = os.path.join(os.path.expanduser("~"), ".uv", "uv.toml")
+            config_mirror = None
             
-            if mirror:
-                self.uv_mirror = mirror
-                self.mirror_input.setText(mirror)
+            if os.path.exists(config_file):
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    
+                    import re
+                    match = re.search(r'index-url\s*=\s*"([^"]+)"', content)
+                    if match:
+                        config_mirror = match.group(1)
+                except:
+                    pass
+            
+            # 检查环境变量
+            env_mirror = os.environ.get("UV_INDEX_URL", "")
+            
+            # 优先使用配置文件中的镜像，然后是环境变量
+            if config_mirror:
+                self.uv_mirror = config_mirror
+                self._set_mirror_selection(config_mirror)
+            elif env_mirror:
+                self.uv_mirror = env_mirror
+                self._set_mirror_selection(env_mirror)
             else:
-                # Check for common mirrors
-                common_mirrors = [
-                    "https://pypi.tuna.tsinghua.edu.cn/simple",
-                    "https://mirrors.aliyun.com/pypi/simple",
-                    "https://pypi.mirrors.ustc.edu.cn/simple"
-                ]
-                
-                # Try to detect from pip config
+                # 尝试从 pip 配置检测
                 try:
                     pip_result = subprocess.run(
                         ["pip", "config", "get", "global.index-url"],
@@ -445,14 +474,35 @@ class SettingsDialog(QDialog):
                         pip_mirror = pip_result.stdout.strip()
                         if pip_mirror:
                             self.uv_mirror = pip_mirror
-                            self.mirror_input.setText(f"{pip_mirror} (从 pip 配置检测)")
+                            self._set_mirror_selection(f"{pip_mirror} (从 pip 配置检测)")
                 except:
                     pass
                 
                 if not self.uv_mirror:
-                    self.mirror_input.setText("未配置镜像")
+                    self.mirror_combo.setCurrentIndex(0)  # 默认镜像
+                    
         except Exception as e:
-            self.mirror_input.setText(f"检测失败: {str(e)}")
+            print(f"检测镜像配置时出错: {e}")
+            self.mirror_combo.setCurrentIndex(0)
+    
+    def _set_mirror_selection(self, mirror_url):
+        """根据镜像URL设置下拉框选择"""
+        # 检查是否为预设镜像
+        preset_mirrors = [
+            "https://pypi.tuna.tsinghua.edu.cn/simple",
+            "https://mirrors.aliyun.com/pypi/simple", 
+            "https://pypi.mirrors.ustc.edu.cn/simple",
+            "https://mirrors.cloud.tencent.com/pypi/simple"
+        ]
+        
+        if mirror_url in preset_mirrors:
+            index = self.mirror_combo.findText(mirror_url)
+            if index >= 0:
+                self.mirror_combo.setCurrentIndex(index)
+        else:
+            # 添加为自定义镜像
+            self.mirror_combo.setItemText(self.mirror_combo.count() - 1, f"自定义: {mirror_url}")
+            self.mirror_combo.setCurrentIndex(self.mirror_combo.count() - 1)
     
     def _on_uv_path_changed(self, display_text):
         """处理uv路径选择变更"""
@@ -461,17 +511,121 @@ class SettingsDialog(QDialog):
         
         # 获取选择的uv路径
         current_data = self.path_combo.currentData()
-        if current_data:
+        if current_data == "custom":
+            # 用户选择自定义路径
+            self._show_custom_path_dialog()
+        elif current_data:
             self.uv_path = current_data
             self.path_input.setText(self.uv_path)
             
             # 更新UVManager的自定义路径
             try:
-                from ..core.uv_manager import UVManager
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+                from core.uv_manager import UVManager
                 uv_manager = UVManager()
                 uv_manager.set_custom_uv_path(self.uv_path)
             except:
                 pass
+    
+    def _on_mirror_changed(self, text):
+        """处理镜像地址变更"""
+        # 检查是否是特殊选项
+        if text == "自定义镜像...":
+            self._show_custom_mirror_dialog()
+            return
+        elif text == "默认镜像":
+            # 清除镜像配置
+            self.uv_mirror = ""
+            self._save_mirror_config()
+            return
+        
+        # 检查是否是自定义镜像（以"自定义:"开头）
+        if text.startswith("自定义:"):
+            # 提取实际的镜像地址
+            actual_mirror = text[4:]  # 去掉"自定义:"前缀
+            self.uv_mirror = actual_mirror
+            return
+        
+        # 预设镜像或直接输入的镜像地址
+        self.uv_mirror = text
+        self._save_mirror_config()
+    
+    def _show_custom_path_dialog(self):
+        """显示自定义路径对话框"""
+        from PySide6.QtWidgets import QInputDialog
+        
+        current_path = self.path_input.text() if self.path_input.text() != "未检测到 uv" else ""
+        
+        # 设置默认提示文本
+        if not current_path:
+            current_path = "C:\\path\\to\\uv.exe" if os.name == 'nt' else "/path/to/uv"
+        
+        path, ok = QInputDialog.getText(
+            self,
+            "自定义 UV 路径",
+            "请输入 UV 可执行文件的完整路径:\n(例如: C:\\Users\\username\\.local\\bin\\uv.exe)",
+            text=current_path
+        )
+        
+        if ok and path:
+            # 验证路径
+            try:
+                sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+                from core.uv_manager import UVManager
+                uv_manager = UVManager()
+                if uv_manager._verify_uv_executable(path):
+                    self.uv_path = path
+                    self.path_input.setText(path)
+                    self.path_combo.setItemText(self.path_combo.currentIndex(), f"自定义: {path}")
+                    self.path_combo.setItemData(self.path_combo.currentIndex(), path)
+                    
+                    # 更新UVManager
+                    uv_manager.set_custom_uv_path(path)
+                    
+                    QMessageBox.information(self, "成功", "自定义 UV 路径设置成功！")
+                else:
+                    QMessageBox.warning(self, "错误", "指定的路径不是有效的 UV 可执行文件")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"验证路径时出错: {str(e)}")
+        elif ok:
+            # 用户取消了输入，恢复到第一个可用选项
+            if self.uv_paths:
+                self.path_combo.setCurrentIndex(0)
+    
+    def _show_custom_mirror_dialog(self):
+        """显示自定义镜像对话框"""
+        from PySide6.QtWidgets import QInputDialog
+        
+        current_mirror = self.uv_mirror if self.uv_mirror else ""
+        
+        # 设置默认文本作为提示
+        if not current_mirror:
+            current_mirror = "https://example.com/simple"
+        
+        mirror, ok = QInputDialog.getText(
+            self,
+            "自定义镜像地址",
+            "请输入 PyPI 镜像地址:\n(例如: https://pypi.tuna.tsinghua.edu.cn/simple)",
+            text=current_mirror
+        )
+        
+        if ok and mirror and mirror != "https://example.com/simple":
+            self.uv_mirror = mirror
+            self.mirror_combo.setItemText(self.mirror_combo.currentIndex(), f"自定义: {mirror}")
+            self._save_mirror_config()
+        elif ok:
+            # 用户取消了输入或使用了默认提示，恢复到默认镜像
+            self.mirror_combo.setCurrentIndex(0)
+    
+    def _save_mirror_config(self):
+        """保存镜像配置到环境变量和文件"""
+        try:
+            sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+            from core.uv_manager import UVManager
+            uv_manager = UVManager()
+            uv_manager.set_custom_mirror(self.uv_mirror)
+        except Exception as e:
+            print(f"保存镜像配置时出错: {e}")
     
     def _uv_not_found(self):
         """Handle case when uv is not found"""
@@ -479,10 +633,11 @@ class SettingsDialog(QDialog):
         self.uv_paths = []
         self.path_combo.clear()
         self.path_combo.addItem("未检测到 uv", "")
+        self.path_combo.addItem("自定义路径...", "custom")
         self.path_combo.setEnabled(False)
         self.path_input.setText("未检测到 uv")
         self.path_input.setPlaceholderText("请安装 uv")
-        self.mirror_input.setText("N/A")
+        self.mirror_combo.setCurrentIndex(0)
         self.status_label.setText("状态: ✗ 未安装")
         if self.is_dark_theme:
             self.status_label.setStyleSheet("color: #f48771; font-weight: bold;")

@@ -26,6 +26,8 @@ class UVManager:
         self.workspace_root = Path(workspace_root)
         self.workspace_root.mkdir(parents=True, exist_ok=True)
         self.custom_uv_path = None
+        self.custom_mirror = None
+        self._load_mirror_config()
     
     def get_workflow_dir(self, workflow_name: str) -> Path:
         """获取工作流目录"""
@@ -119,6 +121,12 @@ class UVManager:
             
             for package in packages:
                 cmd = [uv_path, "pip", "install", package, "--python", str(python_exe)]
+                
+                # 如果配置了镜像，添加镜像参数
+                current_mirror = self.get_current_mirror()
+                if current_mirror:
+                    cmd.extend(["--index-url", current_mirror])
+                    print(f"使用镜像: {current_mirror}")
                 
                 result = subprocess.run(
                     cmd,
@@ -421,3 +429,77 @@ class UVManager:
             self.custom_uv_path = uv_path
             return True
         return False
+    
+    def set_custom_mirror(self, mirror_url: str) -> bool:
+        """
+        设置自定义镜像地址
+        
+        Args:
+            mirror_url: 镜像地址
+        
+        Returns:
+            是否设置成功
+        """
+        self.custom_mirror = mirror_url
+        self._save_mirror_config()
+        return True
+    
+    def _load_mirror_config(self):
+        """加载镜像配置"""
+        # 检查配置文件
+        config_file = os.path.join(os.path.expanduser("~"), ".uv", "uv.toml")
+        if os.path.exists(config_file):
+            try:
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                
+                import re
+                match = re.search(r'index-url\s*=\s*"([^"]+)"', content)
+                if match:
+                    self.custom_mirror = match.group(1)
+                    return
+            except:
+                pass
+        
+        # 检查环境变量
+        env_mirror = os.environ.get("UV_INDEX_URL", "")
+        if env_mirror:
+            self.custom_mirror = env_mirror
+    
+    def _save_mirror_config(self):
+        """保存镜像配置"""
+        if self.custom_mirror:
+            # 设置环境变量
+            os.environ["UV_INDEX_URL"] = self.custom_mirror
+            
+            # 保存到配置文件
+            try:
+                config_dir = os.path.join(os.path.expanduser("~"), ".uv")
+                os.makedirs(config_dir, exist_ok=True)
+                
+                config_file = os.path.join(config_dir, "uv.toml")
+                if os.path.exists(config_file):
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                else:
+                    content = ""
+                
+                import re
+                if "[pip]" in content:
+                    content = re.sub(r'index-url\s*=\s*".*?"', f'index-url = "{self.custom_mirror}"', content)
+                else:
+                    if content and not content.endswith('\n'):
+                        content += '\n'
+                    content += '[pip]\n'
+                    content += f'index-url = "{self.custom_mirror}"\n'
+                
+                with open(config_file, 'w', encoding='utf-8') as f:
+                    f.write(content)
+            except Exception as e:
+                print(f"保存镜像配置时出错: {e}")
+    
+    def get_current_mirror(self) -> str:
+        """获取当前使用的镜像地址"""
+        if self.custom_mirror:
+            return self.custom_mirror
+        return os.environ.get("UV_INDEX_URL", "")
