@@ -82,6 +82,11 @@ def create_spec_file():
     if EXAMPLES_DIR.exists():
         added_files.append((str(EXAMPLES_DIR), "examples"))
     
+    # 工作流运行脚本
+    runner_script = ROOT_DIR / "src" / "core" / "workflow_runner.py"
+    if runner_script.exists():
+        added_files.append((str(runner_script), "src/core"))
+    
     # 手动构建spec内容，避免f-string问题
     spec_lines = [
         '# -*- mode: python ; coding: utf-8 -*-',
@@ -116,6 +121,7 @@ def create_spec_file():
         '    "src.core.workflow_executor",',
         '    "src.core.uv_manager",',
         '    "src.core.node_base",',
+        '    "src.core.workflow_runner",',
         '    ',
         '    # JSON 和其他依赖',
         '    "json",',
@@ -258,6 +264,35 @@ def verify_build():
         print("[ERROR] Directory distribution not found")
         return False
 
+def create_release_package():
+    """Create release package (zip) matching GitHub Actions"""
+    print("Creating release package...")
+    
+    release_dir = Path("release")
+    release_dir.mkdir(exist_ok=True)
+    
+    zip_path = release_dir / "LocalFlow-Windows-x64.zip"
+    source_dir = Path("dist/LocalFlow")
+    
+    if not source_dir.exists():
+        print(f"[ERROR] Source directory not found: {source_dir}")
+        return False
+        
+    import zipfile
+    
+    try:
+        print(f"Zipping to {zip_path}...")
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for file_path in source_dir.rglob('*'):
+                arcname = file_path.relative_to(source_dir.parent)
+                zf.write(file_path, arcname)
+                
+        print(f"[OK] Release package created: {zip_path}")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Failed to create zip: {e}")
+        return False
+
 def create_portable_package():
     """Create portable package"""
     print("Creating portable package...")
@@ -322,24 +357,22 @@ def main():
         if not verify_build():
             sys.exit(1)
         
-        # 6. Create portable version
+        # 6. Create release package (GitHub Actions style)
+        create_release_package()
+
+        # 7. Create portable version (Optional, kept for convenience)
         create_portable_package()
         
         print("\n" + "=" * 50)
         print("[SUCCESS] Build completed!")
         print("=" * 50)
         print("\nOutput files:")
-        print("  - dist/LocalFlow/                (Directory version - Recommended)")
-        print("     - LocalFlow.exe             (Main executable)")
-        print("     - _internal/               (Dependencies)")
-        print("  - dist/LocalFlow_Portable/       (Portable version)")
-        print("\n✅ Compliant with PySide6 LGPL requirements:")
-        print("  - Uses directory mode instead of one-file")
-        print("  - Keeps Qt DLLs separate")
-        print("  - Allows user to replace Qt libs")
-        print("\nRecommended usage:")
-        print("  - Directory version for distribution")
-        print("  - 便携版本用于专业部署")
+        print("  - dist/LocalFlow/                (Directory version)")
+        print("  - release/LocalFlow-Windows-x64.zip (Release Package - Matches GitHub Actions)")
+        print("  - dist/LocalFlow_Portable/       (Portable version with start script)")
+        print("\n✅ Compliant with PySide6 LGPL requirements")
+        print("Recommended usage:")
+        print("  - Use release/LocalFlow-Windows-x64.zip for distribution")
         
     except KeyboardInterrupt:
         print("\n\n[INFO] Build cancelled")
