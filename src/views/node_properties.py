@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QFont
 
 from src.core.node_base import NodeType
+from src.core.theme_manager import ThemeManager
 
 
 class NodePropertiesWidget(QWidget):
@@ -39,17 +40,17 @@ class NodePropertiesWidget(QWidget):
         title_font.setPointSize(10)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        title_label.setStyleSheet("padding: 8px; background-color: #2d2d2d; color: #e0e0e0;")
+        title_label.setStyleSheet(f"padding: 8px; background-color: {ThemeManager.COLORS['surface_light']}; color: {ThemeManager.COLORS['text']};")
         layout.addWidget(title_label)
         
         # 滚动区域
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("""
-            QScrollArea {
+        scroll.setStyleSheet(f"""
+            QScrollArea {{
                 border: none;
-                background-color: #1e1e1e;
-            }
+                background-color: {ThemeManager.COLORS['background']};
+            }}
         """)
         
         # 内容容器
@@ -61,7 +62,7 @@ class NodePropertiesWidget(QWidget):
         # 默认提示
         self.empty_label = QLabel("请选择一个节点")
         self.empty_label.setAlignment(Qt.AlignCenter)
-        self.empty_label.setStyleSheet("color: #888888; font-size: 11pt; padding: 20px;")
+        self.empty_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']}; font-size: 11pt; padding: 20px;")
         self.content_layout.addWidget(self.empty_label)
         
         self.content_layout.addStretch()
@@ -70,48 +71,15 @@ class NodePropertiesWidget(QWidget):
         layout.addWidget(scroll)
         
         # 应用通用样式
-        self.setStyleSheet("""
-            QLabel {
-                color: #e0e0e0;
-            }
-            QLineEdit, QTextEdit, QComboBox {
-                padding: 6px;
-                border: 1px solid #3f3f3f;
-                border-radius: 4px;
-                background-color: #2d2d2d;
-                color: #e0e0e0;
-            }
-            QLineEdit:focus, QTextEdit:focus, QComboBox:focus {
-                border: 1px solid #0e639c;
-            }
-            QPushButton {
-                padding: 8px 16px;
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-            QPushButton:pressed {
-                background-color: #0d5689;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 1px solid #3f3f3f;
-                border-radius: 4px;
-                margin-top: 10px;
-                padding-top: 10px;
-                color: #e0e0e0;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
+        combined_style = (
+            ThemeManager.get_input_style() + "\n" +
+            ThemeManager.get_button_style("primary") + "\n" +
+            ThemeManager.get_group_box_style()
+        )
+        # Add label color
+        combined_style += f"\nQLabel {{ color: {ThemeManager.COLORS['text']}; }}"
+        
+        self.setStyleSheet(combined_style)
     
     def _clear_content_immediately(self):
         """立即清空内容区域的所有控件"""
@@ -145,7 +113,7 @@ class NodePropertiesWidget(QWidget):
         # 显示空提示
         self.empty_label = QLabel("请选择一个节点")
         self.empty_label.setAlignment(Qt.AlignCenter)
-        self.empty_label.setStyleSheet("color: #888888; font-size: 11pt; padding: 20px;")
+        self.empty_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']}; font-size: 11pt; padding: 20px;")
         self.content_layout.addWidget(self.empty_label)
         self.content_layout.addStretch()
         
@@ -191,12 +159,12 @@ class NodePropertiesWidget(QWidget):
         
         # 节点ID
         id_label = QLabel(node_id)
-        id_label.setStyleSheet("color: #888888;")
+        id_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']};")
         info_layout.addRow("节点ID:", id_label)
         
         # 节点类型
         type_label = QLabel(node_type.value)
-        type_label.setStyleSheet("color: #888888;")
+        type_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']};")
         info_layout.addRow("节点类型:", type_label)
         
         info_group.setLayout(info_layout)

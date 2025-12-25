@@ -11,6 +11,8 @@ from src.views.node_browser import NodeBrowserWidget
 from src.views.node_properties import NodePropertiesWidget
 from src.core.config_manager import ConfigManager
 
+from src.core.theme_manager import ThemeManager
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
@@ -34,9 +36,9 @@ class MainWindow(QMainWindow):
         toolbar.setFloatable(False)
         toolbar.setToolButtonStyle(Qt.ToolButtonIconOnly)
         toolbar.setIconSize(QSize(24, 24))
-        toolbar.setStyleSheet("padding: 5px; margin: 0px;")
-        self.setToolbarStyle(toolbar, "LeftToolbar")
-
+        # Use ThemeManager for toolbar style
+        toolbar.setStyleSheet(ThemeManager.get_toolbar_style("right"))
+        
         # 节点浏览器按钮
         action_node_browser = toolbar.addAction(QIcon(self._get_resource_path("assets/icons/node.png")), "节点浏览器")
         action_node_browser.triggered.connect(self._toggle_node_browser)
@@ -57,6 +59,8 @@ class MainWindow(QMainWindow):
         self.tabs.tabCloseRequested.connect(self._close_tab)
         self.tabs.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tabs.customContextMenuRequested.connect(self._show_tab_context_menu)
+        # Use ThemeManager for tab style
+        self.tabs.setStyleSheet(ThemeManager.get_tab_widget_style())
         self.setCentralWidget(self.tabs)
         
         # Create Overview Tab
@@ -70,9 +74,9 @@ class MainWindow(QMainWindow):
         toolbar_right.setFloatable(False)
         toolbar_right.setToolButtonStyle(Qt.ToolButtonIconOnly)
         toolbar_right.setIconSize(QSize(24, 24))
-        toolbar_right.setStyleSheet("padding: 5px; margin: 0px;")
-        self.setToolbarStyle(toolbar_right, "RightToolbar")
-
+        # Use ThemeManager for toolbar style
+        toolbar_right.setStyleSheet(ThemeManager.get_toolbar_style("left"))
+        
         # 节点属性按钮
         action_node_props = toolbar_right.addAction(QIcon(self._get_resource_path("assets/icons/detail.png")), "节点属性")
         action_node_props.triggered.connect(self._toggle_node_properties)
@@ -104,7 +108,9 @@ class MainWindow(QMainWindow):
         self.node_properties.properties_updated.connect(self._on_node_properties_updated)
         
         # 应用停靠窗口样式
-        self._apply_dock_styles()
+        dock_style = ThemeManager.get_dock_widget_style()
+        self.node_browser_dock.setStyleSheet(dock_style)
+        self.node_properties_dock.setStyleSheet(dock_style)
         
         # 恢复dock窗口状态
         self._restore_dock_states()
@@ -112,83 +118,6 @@ class MainWindow(QMainWindow):
         # 安装事件过滤器来监听dock窗口大小变化
         self.node_browser_dock.installEventFilter(self)
         self.node_properties_dock.installEventFilter(self)
-
-    def setToolbarStyle(self, toolbar, param):
-        if param == "LeftToolbar":
-            toolbar.setStyleSheet("""
-            QToolBar {
-                border: none;
-                border-right: 1px solid #111111;
-                background: transparent;
-                padding: 6px;
-            }
-
-            QToolBar::handle {
-                image: none;
-            }
-
-            QToolBar::separator {
-                background: none;
-                width: 0px;
-                height: 0px;
-            }
-
-            QToolButton {
-                border: none;
-                padding: 6px;
-            }
-
-            QToolButton:hover {
-                background: rgba(0, 0, 0, 0.06);
-                border-radius: 6px;
-            }
-            """)
-        elif param == "RightToolbar":
-            toolbar.setStyleSheet("""
-            QToolBar {
-                border: none;
-                border-left: 1px solid #111111;
-                background: transparent;
-                padding: 6px;
-            }
-
-            QToolBar::handle {
-                image: none;
-            }
-
-            QToolBar::separator {
-                background: none;
-                width: 0px;
-                height: 0px;
-            }
-
-            QToolButton {
-                border: none;
-                padding: 6px;
-            }
-
-            QToolButton:hover {
-                background: rgba(0, 0, 0, 0.06);
-                border-radius: 6px;
-            }
-            """)
-    
-    def _apply_dock_styles(self):
-        """应用停靠窗口样式"""
-        dock_style = """
-            QDockWidget {
-                titlebar-close-icon: url(close.png);
-                titlebar-normal-icon: url(undock.png);
-                color: #e0e0e0;
-            }
-            QDockWidget::title {
-                background-color: #2d2d2d;
-                padding: 6px;
-                border-bottom: 1px solid #3f3f3f;
-            }
-        """
-        self.node_browser_dock.setStyleSheet(dock_style)
-        self.node_properties_dock.setStyleSheet(dock_style)
     
     def _toggle_node_browser(self):
         """切换节点浏览器显示"""

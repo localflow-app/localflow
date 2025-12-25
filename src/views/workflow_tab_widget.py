@@ -6,6 +6,7 @@ from .workflow_canvas import WorkflowCanvas, WorkflowGraphicsScene
 from src.core.workflow_executor import WorkflowExecutor
 from src.core.uv_manager import UVManager
 from src.core.node_base import NodeType
+from src.core.theme_manager import ThemeManager
 import time
 import os
 import shutil
@@ -44,11 +45,11 @@ class WorkflowTabWidget(QWidget):
         
         # 工具栏
         toolbar = QWidget()
-        toolbar.setStyleSheet("""
-            QWidget {
-                background-color: #2d2d2d;
-                border-bottom: 1px solid #3f3f3f;
-            }
+        toolbar.setStyleSheet(f"""
+            QWidget {{
+                background-color: {ThemeManager.COLORS['surface_light']};
+                border-bottom: 1px solid {ThemeManager.COLORS['border']};
+            }}
         """)
         toolbar_layout = QHBoxLayout(toolbar)
         toolbar_layout.setContentsMargins(10, 5, 10, 5)
@@ -64,25 +65,12 @@ class WorkflowTabWidget(QWidget):
         name_font.setPointSize(10)
         name_font.setBold(True)
         self.name_label.setFont(name_font)
-        self.name_label.setStyleSheet("color: #e0e0e0;")
+        self.name_label.setStyleSheet(f"color: {ThemeManager.COLORS['text']};")
         name_layout.addWidget(self.name_label)
         
         # 重命名按钮
         rename_btn = QPushButton("✏️")
-        rename_btn.setStyleSheet("""
-            QPushButton {
-                background-color: transparent;
-                color: #e0e0e0;
-                border: 1px solid #555;
-                padding: 2px 6px;
-                border-radius: 3px;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #555;
-                border-color: #777;
-            }
-        """)
+        rename_btn.setStyleSheet(ThemeManager.get_button_style("icon"))
         rename_btn.setToolTip("重命名工作流")
         rename_btn.clicked.connect(self.rename_workflow)
         name_layout.addWidget(rename_btn)
@@ -93,40 +81,18 @@ class WorkflowTabWidget(QWidget):
         
         # 执行按钮
         self.run_btn = QPushButton("▶ 执行工作流")
-        self.run_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4CAF50;
-                color: white;
-                border: none;
-                padding: 6px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #45a049;
-            }
-            QPushButton:pressed {
-                background-color: #3d8b40;
-            }
-        """)
+        self.run_btn.setStyleSheet(ThemeManager.get_button_style("primary")) # Use primary style which is confusingly named but lets use success logic or customize
+        # Actually ThemeManager has primary, danger, icon. Let's start with primary (accent) but maybe we want green for run.
+        # Let's override purely for color if needed, or stick to ThemeManager. 
+        # ThemeManager primary is Blue/Accent. Run usually is Green. 
+        # Let's just use custom style using ThemeManager colors for Run to keep it green if desired, OR stick to unifying everything to Accent Color.
+        # The prompt asked for "Unified". Blue run button is standard in VS Code etc. Let's stick to ThemeManager.
         self.run_btn.clicked.connect(self._execute_workflow)
         toolbar_layout.addWidget(self.run_btn)
         
         # 保存按钮
         save_btn = QPushButton("💾 保存")
-        save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                padding: 6px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1976D2;
-            }
-        """)
+        save_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
         save_btn.clicked.connect(self._save_workflow)
         toolbar_layout.addWidget(save_btn)
         
@@ -396,31 +362,13 @@ class WorkflowTabWidget(QWidget):
         dialog = QDialog(self)
         dialog.setWindowTitle("重命名工作流")
         dialog.setFixedSize(400, 150)
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: #2d2d2d;
-                color: #e0e0e0;
-            }
-            QLineEdit {
-                background-color: #3d3d3d;
-                color: #e0e0e0;
-                border: 1px solid #555;
-                padding: 5px;
-                border-radius: 3px;
-            }
-            QPushButton {
-                background-color: #2196F3;
-                color: white;
-                border: none;
-                padding: 6px 16px;
-                border-radius: 4px;
-            }
-            QPushButton:hover {
-                background-color: #1976D2;
-            }
-            QPushButton:pressed {
-                background-color: #0d47a1;
-            }
+        # Global Stylesheet takes care of QDialog, but let's be safe or just trust global
+        # Specific overrides
+        dialog.setStyleSheet(f"""
+            QDialog {{
+                background-color: {ThemeManager.COLORS['background']};
+                color: {ThemeManager.COLORS['text']};
+            }}
         """)
         
         layout = QVBoxLayout(dialog)
@@ -429,12 +377,13 @@ class WorkflowTabWidget(QWidget):
         input_layout = QHBoxLayout()
         input_layout.addWidget(QLabel("新名称:"))
         name_input = QLineEdit(self.workflow_name)
+        name_input.setStyleSheet(ThemeManager.get_input_style())
         input_layout.addWidget(name_input)
         layout.addLayout(input_layout)
         
         # 错误提示标签
         error_label = QLabel("")
-        error_label.setStyleSheet("color: #ff6b6b; font-size: 12px;")
+        error_label.setStyleSheet(f"color: {ThemeManager.COLORS['error']}; font-size: 12px;")
         layout.addWidget(error_label)
         
         # 按钮

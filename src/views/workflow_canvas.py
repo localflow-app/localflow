@@ -5,6 +5,8 @@ from PySide6.QtCore import Qt, QLine, Signal, QPointF
 from PySide6.QtGui import QBrush, QColor, QPen, QPainter
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView
 
+from src.core.theme_manager import ThemeManager
+
 
 class WorkflowCanvas(QGraphicsView):
     # 信号定义
@@ -187,15 +189,15 @@ class WorkflowCanvas(QGraphicsView):
         from src.views.node_graphics import NodeGraphicsItem
         
         menu = QMenu()
-        menu.setStyleSheet("""
-            QMenu {
-                background-color: #2d2d2d;
-                color: #e0e0e0;
-                border: 1px solid #3f3f3f;
-            }
-            QMenu::item:selected {
-                background-color: #0e639c;
-            }
+        menu.setStyleSheet(f"""
+            QMenu {{
+                background-color: {ThemeManager.COLORS['surface_light']};
+                color: {ThemeManager.COLORS['text']};
+                border: 1px solid {ThemeManager.COLORS['border']};
+            }}
+            QMenu::item:selected {{
+                background-color: {ThemeManager.COLORS['selection']};
+            }}
         """)
         
         # 添加节点类型选项
@@ -321,7 +323,7 @@ class WorkflowCanvas(QGraphicsView):
 class WorkflowGraphicsScene(QGraphicsScene):
     def __init__(self, parent=None):
         super().__init__(parent)
-        scene_background_color = "#212121"
+        scene_background_color = ThemeManager.COLORS['background']
         scene_width = 32000
         scene_height = 32000
         # width
@@ -329,8 +331,8 @@ class WorkflowGraphicsScene(QGraphicsScene):
         # Determine how many small cells there are in the big cell
         scene_grid_chunk = 5
         # Drawing grid in the editor
-        scene_grid_normal_line_color = "#313131"
-        scene_grid_dark_line_color = "#131313"
+        scene_grid_normal_line_color = ThemeManager.COLORS['surface']
+        scene_grid_dark_line_color = "#131313" # Keep as distinct dark
         scene_grid_normal_line_width = 1.0
         scene_grid_dark_line_width = 1.0
 

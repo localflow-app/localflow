@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, QRectF, QPointF
 from PySide6.QtGui import QBrush, QColor, QPen, QFont, QPainter
 
 from src.core.node_base import NodeType
+from src.core.theme_manager import ThemeManager
 
 
 class NodeGraphicsItem(QGraphicsItem):
@@ -49,9 +50,9 @@ class NodeGraphicsItem(QGraphicsItem):
         # 颜色
         self.color = QColor(self.NODE_COLORS.get(node_type, "#607D8B"))
         self.header_color = self.color.darker(110)
-        self.body_color = QColor("#2d2d2d")
-        self.border_color = QColor("#3f3f3f")
-        self.selected_color = QColor("#0e639c")
+        self.body_color = QColor(ThemeManager.COLORS['surface'])
+        self.border_color = QColor(ThemeManager.COLORS['border'])
+        self.selected_color = QColor(ThemeManager.COLORS['accent'])
         
         # 状态
         self.is_selected = False
@@ -79,7 +80,7 @@ class NodeGraphicsItem(QGraphicsItem):
         """创建文本项"""
         # 标题文本
         self.title_item = QGraphicsTextItem(self.title, self)
-        self.title_item.setDefaultTextColor(QColor("#ffffff"))
+        self.title_item.setDefaultTextColor(QColor(ThemeManager.COLORS['white']))
         font = QFont("Arial", 10, QFont.Bold)
         self.title_item.setFont(font)
         
@@ -92,7 +93,7 @@ class NodeGraphicsItem(QGraphicsItem):
         
         # 节点类型文本
         self.type_item = QGraphicsTextItem(self.node_type.value, self)
-        self.type_item.setDefaultTextColor(QColor("#a0a0a0"))
+        self.type_item.setDefaultTextColor(QColor(ThemeManager.COLORS['text_secondary']))
         font = QFont("Arial", 8)
         self.type_item.setFont(font)
         
@@ -296,8 +297,8 @@ class PortGraphicsItem(QGraphicsEllipseItem):
         self.radius = radius
         
         # 样式
-        self.setBrush(QBrush(QColor("#4CAF50")))
-        self.setPen(QPen(QColor("#2d2d2d"), 2))
+        self.setBrush(QBrush(QColor(ThemeManager.COLORS['success'])))
+        self.setPen(QPen(QColor(ThemeManager.COLORS['surface']), 2))
         
         # 连接线
         self.connections = []
@@ -334,7 +335,7 @@ class ConnectionGraphicsItem(QGraphicsItem):
         self.end_pos = None
         
         # 样式
-        self.pen = QPen(QColor("#4CAF50"), 2)
+        self.pen = QPen(QColor(ThemeManager.COLORS['success']), 2)
         self.pen.setCapStyle(Qt.RoundCap)
         
         # 注册连接

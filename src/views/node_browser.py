@@ -9,6 +9,7 @@ from PySide6.QtCore import Qt, Signal, QMimeData
 from PySide6.QtGui import QIcon, QColor, QFont, QDrag
 
 from src.core.node_base import NodeType
+from src.core.theme_manager import ThemeManager
 
 
 class DraggableListWidget(QListWidget):
@@ -64,7 +65,7 @@ class NodeBrowserWidget(QWidget):
         title_font.setPointSize(10)
         title_font.setBold(True)
         title_label.setFont(title_font)
-        title_label.setStyleSheet("padding: 8px; background-color: #2d2d2d; color: #e0e0e0;")
+        title_label.setStyleSheet(f"padding: 8px; background-color: {ThemeManager.COLORS['surface_light']}; color: {ThemeManager.COLORS['text']};")
         layout.addWidget(title_label)
         
         # 搜索框
@@ -74,39 +75,31 @@ class NodeBrowserWidget(QWidget):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("搜索节点...")
         self.search_input.textChanged.connect(self._filter_nodes)
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                padding: 6px;
-                border: 1px solid #3f3f3f;
-                border-radius: 4px;
-                background-color: #2d2d2d;
-                color: #e0e0e0;
-            }
-        """)
+        self.search_input.setStyleSheet(ThemeManager.get_input_style())
         search_layout.addWidget(self.search_input)
         
         layout.addLayout(search_layout)
         
         # 节点列表 - 使用自定义可拖拽列表
         self.node_list = DraggableListWidget()
-        self.node_list.setStyleSheet("""
-            QListWidget {
-                background-color: #252525;
-                border: 1px solid #3f3f3f;
-                color: #e0e0e0;
+        self.node_list.setStyleSheet(f"""
+            QListWidget {{
+                background-color: {ThemeManager.COLORS['surface']};
+                border: 1px solid {ThemeManager.COLORS['border']};
+                color: {ThemeManager.COLORS['text']};
                 outline: none;
-            }
-            QListWidget::item {
+            }}
+            QListWidget::item {{
                 padding: 8px;
-                border-bottom: 1px solid #2d2d2d;
-            }
-            QListWidget::item:hover {
-                background-color: #2d2d2d;
-            }
-            QListWidget::item:selected {
-                background-color: #0e639c;
-                color: white;
-            }
+                border-bottom: 1px solid {ThemeManager.COLORS['surface_light']};
+            }}
+            QListWidget::item:hover {{
+                background-color: {ThemeManager.COLORS['surface_light']};
+            }}
+            QListWidget::item:selected {{
+                background-color: {ThemeManager.COLORS['selection']};
+                color: {ThemeManager.COLORS['white']};
+            }}
         """)
         self.node_list.itemClicked.connect(self._on_node_clicked)
         self.node_list.itemDoubleClicked.connect(self._on_node_double_clicked)
@@ -114,7 +107,7 @@ class NodeBrowserWidget(QWidget):
         
         # 说明标签
         help_label = QLabel("双击或拖拽添加节点到画布")
-        help_label.setStyleSheet("color: #888888; font-size: 9pt; padding: 5px;")
+        help_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']}; font-size: 9pt; padding: 5px;")
         help_label.setAlignment(Qt.AlignCenter)
         layout.addWidget(help_label)
     

@@ -8,6 +8,8 @@ import shutil
 import sys
 from pathlib import Path
 
+from src.core.theme_manager import ThemeManager
+
 
 class WorkflowCard(QFrame):
     """工作流卡片"""
@@ -24,16 +26,16 @@ class WorkflowCard(QFrame):
     def _setup_ui(self):
         """设置UI"""
         self.setFixedSize(220, 180)
-        self.setStyleSheet("""
-            WorkflowCard {
-                background-color: #2d2d2d;
-                border: 1px solid #3f3f3f;
+        self.setStyleSheet(f"""
+            WorkflowCard {{
+                background-color: {ThemeManager.COLORS['surface']};
+                border: 1px solid {ThemeManager.COLORS['border']};
                 border-radius: 8px;
-            }
-            WorkflowCard:hover {
-                border: 1px solid #0e639c;
-                background-color: #333333;
-            }
+            }}
+            WorkflowCard:hover {{
+                border: 1px solid {ThemeManager.COLORS['accent']};
+                background-color: {ThemeManager.COLORS['surface_lighter']};
+            }}
         """)
         
         layout = QVBoxLayout(self)
@@ -55,7 +57,7 @@ class WorkflowCard(QFrame):
         name_font.setBold(True)
         name_label.setFont(name_font)
         name_label.setAlignment(Qt.AlignCenter)
-        name_label.setStyleSheet("color: #e0e0e0;")
+        name_label.setStyleSheet(f"color: {ThemeManager.COLORS['text']};")
         name_label.setWordWrap(True)
         layout.addWidget(name_label)
         
@@ -65,37 +67,13 @@ class WorkflowCard(QFrame):
         
         # 打开按钮
         open_btn = QPushButton("打开")
-        open_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #0e639c;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #1177bb;
-            }
-        """)
+        open_btn.setStyleSheet(ThemeManager.get_button_style("primary"))
         open_btn.clicked.connect(lambda: self.open_clicked.emit(self.workflow_name, self.workflow_path))
         button_layout.addWidget(open_btn)
         
         # 删除按钮
         delete_btn = QPushButton("删除")
-        delete_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #d32f2f;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #f44336;
-            }
-        """)
+        delete_btn.setStyleSheet(ThemeManager.get_button_style("danger"))
         delete_btn.clicked.connect(lambda: self.delete_clicked.emit(self.workflow_name))
         button_layout.addWidget(delete_btn)
         
@@ -130,12 +108,12 @@ class OverviewWidget(QWidget):
         
         # Title
         title_label = QLabel("欢迎使用 LocalFlow")
-        title_label.setStyleSheet("""
-            QLabel {
+        title_label.setStyleSheet(f"""
+            QLabel {{
                 font-size: 24px;
                 font-weight: bold;
-                color: #2c3e50;
-            }
+                color: {ThemeManager.COLORS['text']};
+            }}
         """)
         title_label.setAlignment(Qt.AlignCenter)
         header_layout.addWidget(title_label)
@@ -148,12 +126,12 @@ class OverviewWidget(QWidget):
         list_header_layout.setContentsMargins(0, 0, 0, 0)
         
         workflows_title = QLabel("我的工作流")
-        workflows_title.setStyleSheet("""
-            QLabel {
+        workflows_title.setStyleSheet(f"""
+            QLabel {{
                 font-size: 16px;
                 font-weight: bold;
-                color: #e0e0e0;
-            }
+                color: {ThemeManager.COLORS['text']};
+            }}
         """)
         list_header_layout.addWidget(workflows_title)
         
@@ -162,23 +140,7 @@ class OverviewWidget(QWidget):
         # Add Workflow Button
         add_workflow_btn = QPushButton("+ 新建工作流")
         add_workflow_btn.setFixedHeight(40)
-        add_workflow_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #007ACC;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                font-size: 14px;
-                font-weight: bold;
-                padding: 0 20px;
-            }
-            QPushButton:hover {
-                background-color: #005a9e;
-            }
-            QPushButton:pressed {
-                background-color: #004578;
-            }
-        """)
+        add_workflow_btn.setStyleSheet(ThemeManager.get_button_style("primary"))
         add_workflow_btn.clicked.connect(self._on_add_workflow_clicked)
         list_header_layout.addWidget(add_workflow_btn)
         
@@ -203,12 +165,12 @@ class OverviewWidget(QWidget):
         # 空状态提示
         self.empty_label = QLabel("暂无工作流\n点击上方按钮创建新工作流")
         self.empty_label.setAlignment(Qt.AlignCenter)
-        self.empty_label.setStyleSheet("""
-            QLabel {
+        self.empty_label.setStyleSheet(f"""
+            QLabel {{
                 font-size: 14px;
-                color: #888888;
+                color: {ThemeManager.COLORS['text_secondary']};
                 padding: 40px;
-            }
+            }}
         """)
         self.cards_layout.addWidget(self.empty_label, 0, 0, Qt.AlignCenter)
         

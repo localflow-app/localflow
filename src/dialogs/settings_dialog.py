@@ -7,6 +7,8 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont, QPalette
 
+from src.core.theme_manager import ThemeManager
+
 
 class InstallWorker(QThread):
     """Worker thread for installing uv"""
@@ -53,7 +55,7 @@ class SettingsDialog(QDialog):
         self.uv_mirror = ""
         self.uv_paths = []  # 存储找到的所有uv路径
         self.install_worker = None
-        self.is_dark_theme = self._detect_dark_theme()
+        # self.is_dark_theme = self._detect_dark_theme() # Removed in favor of ThemeManager
         
         self._setup_ui()
         self._detect_uv()
@@ -114,7 +116,7 @@ class SettingsDialog(QDialog):
         
         # Status
         self.status_label = QLabel("状态: 检测中...")
-        self.status_label.setStyleSheet("color: #666666; font-style: italic;")
+        self.status_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']}; font-style: italic;")
         uv_layout.addWidget(self.status_label)
         
         uv_group.setLayout(uv_layout)
@@ -126,10 +128,7 @@ class SettingsDialog(QDialog):
         
         info_label = QLabel("UV 是一个快速的 Python 包管理工具，可以替代 pip。")
         info_label.setWordWrap(True)
-        if self.is_dark_theme:
-            info_label.setStyleSheet("color: #a0a0a0;")
-        else:
-            info_label.setStyleSheet("color: #555555;")
+        info_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']};")
         install_layout.addWidget(info_label)
         
         # Installation methods
@@ -181,10 +180,7 @@ class SettingsDialog(QDialog):
         
         self.progress_label = QLabel("")
         self.progress_label.setVisible(False)
-        if self.is_dark_theme:
-            self.progress_label.setStyleSheet("color: #1177bb;")
-        else:
-            self.progress_label.setStyleSheet("color: #007ACC;")
+        self.progress_label.setStyleSheet(f"color: {ThemeManager.COLORS['accent']};")
         install_layout.addWidget(self.progress_label)
         
         install_group.setLayout(install_layout)
@@ -205,170 +201,52 @@ class SettingsDialog(QDialog):
         
         self._apply_styles()
     
-    def _detect_dark_theme(self):
-        """Detect if the current theme is dark"""
-        palette = QApplication.palette()
-        window_color = palette.color(QPalette.Window)
-        # If window background is dark (brightness < 128), it's a dark theme
-        brightness = (window_color.red() + window_color.green() + window_color.blue()) / 3
-        return brightness < 128
+    # Removed _detect_dark_theme
     
     def _apply_styles(self):
-        """Apply modern styles to the dialog based on theme"""
-        if self.is_dark_theme:
-            # Dark theme styles
-            self.setStyleSheet("""
-                QDialog {
-                    background-color: #1e1e1e;
-                    color: #e0e0e0;
-                }
-                QGroupBox {
-                    font-weight: bold;
-                    border: 2px solid #3f3f3f;
-                    border-radius: 6px;
-                    margin-top: 12px;
-                    padding-top: 10px;
-                    background-color: #2d2d2d;
-                    color: #e0e0e0;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                    color: #e0e0e0;
-                }
-                QLabel {
-                    color: #e0e0e0;
-                }
-                QLineEdit {
-                    padding: 6px;
-                    border: 1px solid #3f3f3f;
-                    border-radius: 4px;
-                    background-color: #2d2d2d;
-                    color: #e0e0e0;
-                }
-                QLineEdit:read-only {
-                    background-color: #252525;
-                    color: #a0a0a0;
-                }
-                QPushButton {
-                    padding: 6px 12px;
-                    background-color: #0e639c;
-                    color: #ffffff;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #1177bb;
-                }
-                QPushButton:pressed {
-                    background-color: #0d5689;
-                }
-                QPushButton:disabled {
-                    background-color: #3f3f3f;
-                    color: #666666;
-                }
-                QTextEdit {
-                    border: 1px solid #3f3f3f;
-                    border-radius: 4px;
-                    background-color: #252525;
-                    color: #d4d4d4;
-                    font-family: 'Consolas', 'Courier New', monospace;
-                    font-size: 10pt;
-                }
-                QProgressBar {
-                    border: 1px solid #3f3f3f;
-                    border-radius: 4px;
-                    background-color: #252525;
-                    text-align: center;
-                    color: #e0e0e0;
-                }
-                QProgressBar::chunk {
-                    background-color: #0e639c;
-                }
-            """)
-        else:
-            # Light theme styles
-            self.setStyleSheet("""
-                QDialog {
-                    background-color: #f5f5f5;
-                    color: #000000;
-                }
-                QGroupBox {
-                    font-weight: bold;
-                    border: 2px solid #cccccc;
-                    border-radius: 6px;
-                    margin-top: 12px;
-                    padding-top: 10px;
-                    background-color: white;
-                    color: #000000;
-                }
-                QGroupBox::title {
-                    subcontrol-origin: margin;
-                    left: 10px;
-                    padding: 0 5px;
-                    color: #000000;
-                }
-                QLabel {
-                    color: #000000;
-                }
-                QLineEdit {
-                    padding: 6px;
-                    border: 1px solid #cccccc;
-                    border-radius: 4px;
-                    background-color: white;
-                    color: #000000;
-                }
-                QLineEdit:read-only {
-                    background-color: #f0f0f0;
-                    color: #666666;
-                }
-                QPushButton {
-                    padding: 6px 12px;
-                    background-color: #007ACC;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #005a9e;
-                }
-                QPushButton:pressed {
-                    background-color: #004578;
-                }
-                QPushButton:disabled {
-                    background-color: #cccccc;
-                    color: #666666;
-                }
-                QTextEdit {
-                    border: 1px solid #cccccc;
-                    border-radius: 4px;
-                    background-color: #fafafa;
-                    color: #000000;
-                    font-family: 'Consolas', 'Courier New', monospace;
-                    font-size: 10pt;
-                }
-                QProgressBar {
-                    border: 1px solid #cccccc;
-                    border-radius: 4px;
-                    background-color: white;
-                    text-align: center;
-                    color: #000000;
-                }
-                QProgressBar::chunk {
-                    background-color: #007ACC;
-                }
-            """)
+        """Apply modern styles to the dialog using ThemeManager"""
+        # Global stylesheet for specific overrides/tweaks
+        self.setStyleSheet(f"""
+            QDialog {{
+                background-color: {ThemeManager.COLORS['background']};
+                color: {ThemeManager.COLORS['text']};
+            }}
+            QLabel {{
+                color: {ThemeManager.COLORS['text']};
+            }}
+            QProgressBar {{
+                border: 1px solid {ThemeManager.COLORS['border']};
+                border-radius: 4px;
+                background-color: {ThemeManager.COLORS['surface']};
+                text-align: center;
+                color: {ThemeManager.COLORS['text']};
+            }}
+            QProgressBar::chunk {{
+                background-color: {ThemeManager.COLORS['accent']};
+            }}
+        """)
+        
+        # Apply component styles
+        self.path_combo.setStyleSheet(ThemeManager.get_input_style())
+        self.mirror_combo.setStyleSheet(ThemeManager.get_input_style())
+        self.path_input.setStyleSheet(ThemeManager.get_input_style())
+        self.manual_text.setStyleSheet(ThemeManager.get_input_style())
+        
+        # Buttons
+        self.detect_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
+        self.install_ps_btn.setStyleSheet(ThemeManager.get_button_style("primary"))
+        self.install_pip_btn.setStyleSheet(ThemeManager.get_button_style("primary"))
+        self.close_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
+        
+        # Group Boxes
+        group_style = ThemeManager.get_group_box_style()
+        self.findChildren(QGroupBox)[0].setStyleSheet(group_style) # UV Package Manager Group
+        self.findChildren(QGroupBox)[1].setStyleSheet(group_style) # Install UV Group
     
     def _detect_uv(self):
         """Detect uv installation and mirror configuration"""
         self.status_label.setText("状态: 检测中...")
-        if self.is_dark_theme:
-            self.status_label.setStyleSheet("color: #888888; font-style: italic;")
-        else:
-            self.status_label.setStyleSheet("color: #666666; font-style: italic;")
+        self.status_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']}; font-style: italic;")
         
         # Import UVManager here to avoid circular imports
         try:
@@ -421,10 +299,7 @@ class SettingsDialog(QDialog):
                 else:
                     self.status_label.setText(f"状态: ✓ 已安装 {count} 个uv")
                 
-                if self.is_dark_theme:
-                    self.status_label.setStyleSheet("color: #4ec9b0; font-weight: bold;")
-                else:
-                    self.status_label.setStyleSheet("color: #28a745; font-weight: bold;")
+                self.status_label.setStyleSheet(f"color: {ThemeManager.COLORS['success']}; font-weight: bold;")
             else:
                 self._uv_not_found()
                 
@@ -639,10 +514,7 @@ class SettingsDialog(QDialog):
         self.path_input.setPlaceholderText("请安装 uv")
         self.mirror_combo.setCurrentIndex(0)
         self.status_label.setText("状态: ✗ 未安装")
-        if self.is_dark_theme:
-            self.status_label.setStyleSheet("color: #f48771; font-weight: bold;")
-        else:
-            self.status_label.setStyleSheet("color: #dc3545; font-weight: bold;")
+        self.status_label.setStyleSheet(f"color: {ThemeManager.COLORS['error']}; font-weight: bold;")
     
     def _install_uv_powershell(self):
         """Install uv using PowerShell"""
