@@ -10,12 +10,12 @@ from build import create_spec_file, clean_build, build_executable, verify_build,
 def auto_build():
     """自动构建（不询问）"""
     print("=" * 50)
-    print("LocalFlow 自动打包脚本")
+    print("LocalFlow Auto-Build Script")
     print("=" * 50)
     
     # 检查当前目录
     if not os.path.exists('main.py'):
-        print("[ERROR] 错误: 请在项目根目录运行此脚本")
+        print("[ERROR] Error: Please run this script from the project root directory")
         sys.exit(1)
     
     try:
@@ -37,11 +37,11 @@ def auto_build():
         create_portable_package()
         
         print("\n" + "=" * 50)
-        print("[SUCCESS] 自动打包完成！")
+        print("[SUCCESS] Auto-build completed!")
         print("=" * 50)
         
     except Exception as e:
-        print(f"\n[ERROR] 打包过程中出现错误: {e}")
+        print(f"\n[ERROR] Error during build process: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)

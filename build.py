@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-PyInstaller 打包脚本
-用于将 LocalFlow 打包为可执行文件
+PyInstaller Build Script
+Used to package LocalFlow into an executable
 """
 
 import os
@@ -11,28 +11,28 @@ import subprocess
 from pathlib import Path
 
 def check_requirements():
-    """检查必要的依赖"""
-    print("检查打包依赖...")
+    """Check necessary dependencies"""
+    print("Checking build dependencies...")
     
     try:
         import PyInstaller
-        print("[OK] PyInstaller 已安装")
+        print("[OK] PyInstaller is installed")
     except ImportError:
-        print("[ERROR] PyInstaller 未安装，正在安装...")
+        print("[ERROR] PyInstaller not installed, installing...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-        print("[OK] PyInstaller 安装完成")
+        print("[OK] PyInstaller installed successfully")
     
     try:
         import PIL
-        print("[OK] Pillow 已安装")
+        print("[OK] Pillow is installed")
     except ImportError:
-        print("[ERROR] Pillow 未安装，正在安装...")
+        print("[ERROR] Pillow not installed, installing...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "Pillow"])
-        print("[OK] Pillow 安装完成")
+        print("[OK] Pillow installed successfully")
 
 def create_spec_file():
-    """创建 PyInstaller spec 文件"""
-    print("创建 PyInstaller spec 文件...")
+    """Create PyInstaller spec file"""
+    print("Creating PyInstaller spec file...")
     
     # 验证必要的文件和目录
     ROOT_DIR = Path(".")
@@ -50,23 +50,23 @@ def create_spec_file():
     icon_file = None
     if ico_file.exists():
         icon_file = ico_file
-        print(f"[OK] 使用 ICO 格式图标: {ico_file}")
+        print(f"[OK] Using ICO icon: {ico_file}")
     elif png_file.exists():
         icon_file = png_file
-        print(f"[OK] 使用 PNG 格式图标: {png_file}")
+        print(f"[OK] Using PNG icon: {png_file}")
     else:
         missing_files.append(str(ico_file))
         missing_files.append(str(png_file))
-        print("[WARNING] 没有找到图标文件")
+        print("[WARNING] Icon file not found")
     
     if not ICONS_DIR.exists():
         missing_files.append(str(ICONS_DIR))
     
     if missing_files:
-        print("[WARNING] 警告: 以下文件或目录不存在:")
+        print("[WARNING] Warning: The following files or directories do not exist:")
         for file in missing_files:
             print(f"   - {file}")
-        print("将跳过这些文件...")
+        print("Skipping these files...")
     
     # 构建文件列表
     added_files = []
@@ -198,29 +198,29 @@ def create_spec_file():
     with open('LocalFlow.spec', 'w', encoding='utf-8') as f:
         f.write(spec_content)
     
-    print("[OK] LocalFlow.spec 文件已创建")
+    print("[OK] LocalFlow.spec created successfully")
 
 def clean_build():
-    """清理之前的构建文件"""
-    print("清理之前的构建文件...")
+    """Clean previous build files"""
+    print("Cleaning previous build files...")
     
     dirs_to_clean = ['build', 'dist', 'LocalFlow_dir']
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
             shutil.rmtree(dir_name)
-            print(f"  - 已删除 {dir_name}")
+            print(f"  - Deleted {dir_name}")
     
     files_to_clean = ['LocalFlow.spec']
     for file_name in files_to_clean:
         if os.path.exists(file_name):
             os.remove(file_name)
-            print(f"  - 已删除 {file_name}")
+            print(f"  - Deleted {file_name}")
 
 def build_executable():
-    """构建可执行文件"""
-    print("开始构建可执行文件...")
+    """Build executable"""
+    print("Starting build...")
     
-    # 构建
+    # Build
     cmd = [
         'pyinstaller',
         '--clean',
@@ -230,37 +230,37 @@ def build_executable():
     
     try:
         subprocess.check_call(cmd)
-        print("[OK] 构建完成！")
+        print("[OK] Build completed!")
         return True
     except subprocess.CalledProcessError as e:
-        print(f"[ERROR] 构建失败: {e}")
+        print(f"[ERROR] Build failed: {e}")
         return False
 
 def verify_build():
-    """验证构建结果"""
-    print("验证构建结果...")
+    """Verify build results"""
+    print("Verifying build results...")
     
-    # 检查目录版本（PySide6 推荐方式）
+    # Check directory version (PySide6 recommended)
     dir_path = Path('dist/LocalFlow')
     if dir_path.exists():
-        print(f"[OK] 目录版本已生成: {dir_path}")
+        print(f"[OK] Directory distribution found: {dir_path}")
         
-        # 检查主可执行文件
+        # Check main executable
         main_exe = dir_path / 'LocalFlow.exe'
         if main_exe.exists():
             size_mb = main_exe.stat().st_size / (1024 * 1024)
-            print(f"   主可执行文件: {main_exe}")
-            print(f"   文件大小: {size_mb:.1f} MB")
-            print("   ✅ 符合 PySide6 LGPL 许可要求")
+            print(f"   Main executable: {main_exe}")
+            print(f"   Size: {size_mb:.1f} MB")
+            print("   ✅ Compliant with PySide6 LGPL requirements")
         
         return True
     else:
-        print("[ERROR] 目录版本未找到")
+        print("[ERROR] Directory distribution not found")
         return False
 
 def create_portable_package():
-    """创建便携版本"""
-    print("创建便携版本...")
+    """Create portable package"""
+    print("Creating portable package...")
     
     portable_dir = Path('dist/LocalFlow_Portable')
     if portable_dir.exists():
@@ -268,20 +268,20 @@ def create_portable_package():
     
     portable_dir.mkdir(parents=True)
     
-    # 复制目录版本
+    # Copy directory version
     dir_path = Path('dist/LocalFlow')
     if dir_path.exists():
         shutil.copytree(dir_path, portable_dir / 'LocalFlow', dirs_exist_ok=True)
     
-    # 创建启动脚本
+    # Create start script
     if os.name == 'nt':  # Windows
-        start_script = portable_dir / '启动LocalFlow.bat'
+        start_script = portable_dir / 'Start_LocalFlow.bat'
         start_script.write_text('''@echo off
 cd /d "%~dp0LocalFlow"
 LocalFlow.exe
 pause
 ''')
-        print("[OK] 便携版本已创建 (启动脚本: 启动LocalFlow.bat)")
+        print("[OK] Portable version created (Start script: Start_LocalFlow.bat)")
     else:  # Linux/Mac
         start_script = portable_dir / 'start_localflow.sh'
         start_script.write_text('''#!/bin/bash
@@ -289,63 +289,63 @@ cd "$(dirname "$0")/LocalFlow"
 ./LocalFlow
 ''')
         os.chmod(start_script, 0o755)
-        print("[OK] 便携版本已创建 (启动脚本: start_localflow.sh)")
+        print("[OK] Portable version created (Start script: start_localflow.sh)")
 
 def main():
-    """主函数"""
+    """Main function"""
     print("=" * 50)
-    print("LocalFlow PyInstaller 打包脚本")
+    print("LocalFlow PyInstaller Build Script")
     print("=" * 50)
     
-    # 检查当前目录
+    # Check current directory
     if not Path('main.py').exists():
-        print("[ERROR] 错误: 请在项目根目录运行此脚本")
+        print("[ERROR] Error: Please run this script from project root")
         sys.exit(1)
     
     try:
-        # 1. 检查依赖
+        # 1. Check dependencies
         check_requirements()
         
-        # 2. 询问是否清理
-        clean = input("\n是否清理之前的构建文件? (y/N): ").lower().startswith('y')
+        # 2. Ask to clean
+        clean = input("\nClean previous build files? (y/N): ").lower().startswith('y')
         if clean:
             clean_build()
         
-        # 3. 创建 spec 文件
+        # 3. Create spec file
         create_spec_file()
         
-        # 4. 构建可执行文件
+        # 4. Build executable
         if not build_executable():
             sys.exit(1)
         
-        # 5. 验证构建
+        # 5. Verify build
         if not verify_build():
             sys.exit(1)
         
-        # 6. 创建便携版本
+        # 6. Create portable version
         create_portable_package()
         
         print("\n" + "=" * 50)
-        print("[SUCCESS] 打包完成！")
+        print("[SUCCESS] Build completed!")
         print("=" * 50)
-        print("\n输出文件:")
-        print("  - dist/LocalFlow/                (目录版本 - 推荐方式)")
-        print("     - LocalFlow.exe             (主程序)")
-        print("     - _internal/               (依赖文件)")
-        print("  - dist/LocalFlow_Portable/       (便携版本)")
-        print("\n✅ 符合 PySide6 LGPL 许可要求:")
-        print("  - 使用目录版本而非单文件")
-        print("  - 保留Qt动态链接库分离")
-        print("  - 允许用户替换Qt库")
-        print("\n推荐使用:")
-        print("  - 目录版本用于分发和调试")
+        print("\nOutput files:")
+        print("  - dist/LocalFlow/                (Directory version - Recommended)")
+        print("     - LocalFlow.exe             (Main executable)")
+        print("     - _internal/               (Dependencies)")
+        print("  - dist/LocalFlow_Portable/       (Portable version)")
+        print("\n✅ Compliant with PySide6 LGPL requirements:")
+        print("  - Uses directory mode instead of one-file")
+        print("  - Keeps Qt DLLs separate")
+        print("  - Allows user to replace Qt libs")
+        print("\nRecommended usage:")
+        print("  - Directory version for distribution")
         print("  - 便携版本用于专业部署")
         
     except KeyboardInterrupt:
-        print("\n\n[INFO] 打包已取消")
+        print("\n\n[INFO] Build cancelled")
         sys.exit(1)
     except Exception as e:
-        print(f"\n[ERROR] 打包过程中出现错误: {e}")
+        print(f"\n[ERROR] Error occurred: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
