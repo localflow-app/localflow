@@ -91,6 +91,20 @@ import sys
 # 节点配置
 NODE_CONFIG = {config_json}
 
+def execute(input_data):
+    """
+    执行节点逻辑
+    Args:
+        input_data: 输入数据字典
+    Returns:
+        输出数据字典
+    """
+    try:
+{execute_code}
+        return output_data
+    except Exception as e:
+        raise RuntimeError(f"节点执行错误: {{e}}")
+
 def read_input():
     """从stdin读取输入数据"""
     try:
@@ -112,7 +126,7 @@ def main():
     input_data = read_input()
     
     try:
-{execute_code}
+        output_data = execute(input_data)
         
         # 输出结果
         write_output(output_data)

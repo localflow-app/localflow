@@ -503,3 +503,119 @@ class UVManager:
         if self.custom_mirror:
             return self.custom_mirror
         return os.environ.get("UV_INDEX_URL", "")
+
+    def start_worker(self, workflow_name: str, timeout: int = 10) -> Optional[subprocess.Popen]:
+        """
+        启动工作流工作进程
+        
+        Args:
+            workflow_name: 工作流名称
+            timeout: 启动超时时间
+            
+        Returns:
+            进程对象，失败返回None
+        """
+        python_exe = self._get_python_executable(workflow_name)
+        if not python_exe.exists():
+            print(f"虚拟环境不存在: {python_exe}")
+            return None
+            
+        runner_script = Path(__file__).parent / "workflow_runner.py"
+        if not runner_script.exists():
+            print(f"Runner脚本不存在: {runner_script}")
+            return None
+            
+        try:
+            # 设置环境变量强制使用UTF-8
+            env = os.environ.copy()
+            env["PYTHONIOENCODING"] = "utf-8"
+            
+            # 启动进程
+            process = subprocess.Popen(
+                [str(python_exe), str(runner_script)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1,  #行缓冲
+                encoding='utf-8',
+                errors='replace',  # 忽略无法解码的字符
+                env=env
+            )
+            
+            # 等待READY信号
+            import time
+            start_time = time.time()
+            while time.time() - start_time < timeout:
+                if process.poll() is not None:
+                    print(f"Worker进程提前退出，退出码: {process.returncode}")
+                    return None
+                    
+                line = process.stdout.readline()
+                if line and "READY" in line:
+                    return process
+                time.sleep(0.1)
+                
+            process.kill()
+            print("Worker进程启动超时")
+            return None
+            
+        except Exception as e:
+            print(f"启动Worker失败: {e}")
+            return None
+
+    def send_command_to_worker(self, process: subprocess.Popen, command: dict, timeout: int = 300) -> dict:
+        """
+        向Worker发送命令并等待结果
+        
+        Args:
+            process: Worker进程对象
+            command: 命令字典
+            timeout: 超时时间
+            
+        Returns:
+            执行结果
+        """
+        if process.poll() is not None:
+            return {"success": False, "error": "Worker进程已结束"}
+            
+        try:
+            # 发送命令
+            cmd_str = json.dumps(command, ensure_ascii=False) + "\n"
+            process.stdin.write(cmd_str)
+            process.stdin.flush()
+            
+            # 读取输出
+            import time
+            start_time = time.time()
+            output_buffer = []
+            json_started = False
+            
+            while time.time() - start_time < timeout:
+                if process.poll() is not None:
+                    error = process.stderr.read() if process.stderr else "未知错误"
+                    return {"success": False, "error": f"Worker进程异常退出: {error}"}
+                
+                line = process.stdout.readline()
+                if not line:
+                    continue
+                    
+                if "###JSON_OUTPUT###" in line:
+                    json_started = True
+                    continue
+                    
+                if "###JSON_OUTPUT_END###" in line:
+                    # 解析JSON
+                    try:
+                        json_str = "".join(output_buffer).strip()
+                        return json.loads(json_str)
+                    except Exception as e:
+                        return {"success": False, "error": f"解析JSON失败: {e}"}
+                
+                if json_started:
+                    output_buffer.append(line)
+            
+            return {"success": False, "error": "等待Worker响应超时"}
+            
+        except Exception as e:
+            return {"success": False, "error": f"与Worker通信失败: {e}"}

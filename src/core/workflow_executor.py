@@ -121,13 +121,14 @@ class WorkflowExecutor:
         
         return script_paths
     
-    def execute_node(self, node_id: str, input_data: Dict[str, Any] = None) -> Dict[str, Any]:
+    def execute_node(self, node_id: str, input_data: Dict[str, Any] = None, worker_process = None) -> Dict[str, Any]:
         """
         执行单个节点
         
         Args:
             node_id: 节点ID
             input_data: 输入数据
+            worker_process: 可选的Worker进程对象
         
         Returns:
             节点输出数据
@@ -144,13 +145,23 @@ class WorkflowExecutor:
         
         script_path = node.generate_script(str(scripts_dir))
         
-        # 执行脚本
         print(f"执行节点: {node_id} ({node.node_type.value})")
-        result = self.uv_manager.run_python_script(
-            self.workflow_name,
-            script_path,
-            input_data or {}
-        )
+        
+        # 如果有Worker进程，优先使用Worker
+        if worker_process:
+            command = {
+                "type": "run_node",
+                "script_path": script_path,
+                "input_data": input_data or {}
+            }
+            result = self.uv_manager.send_command_to_worker(worker_process, command)
+        else:
+            # 否则回退到传统方式
+            result = self.uv_manager.run_python_script(
+                self.workflow_name,
+                script_path,
+                input_data or {}
+            )
         
         if not result["success"]:
             raise RuntimeError(f"节点执行失败: {result['error']}")
@@ -178,25 +189,47 @@ class WorkflowExecutor:
         script_paths = self.generate_scripts()
         print(f"已生成 {len(script_paths)} 个节点脚本")
         
-        # 按顺序执行节点
-        for node_id in self.execution_order:
-            node = self.nodes[node_id]
-            
-            # 收集输入数据
-            input_data = self.context.copy()
-            
-            # 执行节点
-            try:
-                output_data = self.execute_node(node_id, input_data)
+        # 启动Worker进程
+        worker_process = None
+        try:
+            print("正在启动工作流执行引擎...")
+            worker_process = self.uv_manager.start_worker(self.workflow_name)
+            if worker_process:
+                print("工作流执行引擎启动成功")
+            else:
+                print("工作流执行引擎启动失败，将使用传统模式执行")
                 
-                # 更新上下文
-                self.context.update(output_data)
+            # 按顺序执行节点
+            for node_id in self.execution_order:
+                node = self.nodes[node_id]
                 
-                print(f"节点 {node_id} 执行成功")
+                # 收集输入数据
+                input_data = self.context.copy()
                 
-            except Exception as e:
-                print(f"节点 {node_id} 执行失败: {e}")
-                raise
+                # 执行节点
+                try:
+                    output_data = self.execute_node(node_id, input_data, worker_process)
+                    
+                    # 更新上下文
+                    self.context.update(output_data)
+                    
+                    print(f"节点 {node_id} 执行成功")
+                    
+                except Exception as e:
+                    print(f"节点 {node_id} 执行失败: {e}")
+                    raise
+        finally:
+            # 清理Worker进程
+            if worker_process:
+                try:
+                    # 发送退出命令
+                    self.uv_manager.send_command_to_worker(worker_process, {"type": "exit"}, timeout=2)
+                    worker_process.terminate()
+                    worker_process.wait(timeout=2)
+                except:
+                    if worker_process.poll() is None:
+                        worker_process.kill()
+                print("工作流执行引擎已关闭")
         
         return self.context
     
