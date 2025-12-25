@@ -3,7 +3,7 @@ import sys
 import subprocess
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QLineEdit, QGroupBox, QMessageBox,
-                               QTextEdit, QProgressBar, QApplication)
+                               QTextEdit, QProgressBar, QApplication, QComboBox)
 from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import QFont, QPalette
 
@@ -51,6 +51,7 @@ class SettingsDialog(QDialog):
         
         self.uv_path = ""
         self.uv_mirror = ""
+        self.uv_paths = []  # 存储找到的所有uv路径
         self.install_worker = None
         self.is_dark_theme = self._detect_dark_theme()
         
@@ -68,15 +69,25 @@ class SettingsDialog(QDialog):
         path_layout = QHBoxLayout()
         path_label = QLabel("UV 路径:")
         path_label.setFixedWidth(80)
+        
+        # 使用下拉框显示多个uv路径
+        self.path_combo = QComboBox()
+        self.path_combo.setMinimumWidth(300)
+        self.path_combo.currentTextChanged.connect(self._on_uv_path_changed)
+        
+        self.detect_btn = QPushButton("重新检测")
+        self.detect_btn.clicked.connect(self._detect_uv)
+        
+        path_layout.addWidget(path_label)
+        path_layout.addWidget(self.path_combo)
+        path_layout.addWidget(self.detect_btn)
+        uv_layout.addLayout(path_layout)
+        
+        # 路径详情显示
         self.path_input = QLineEdit()
         self.path_input.setPlaceholderText("未检测到 uv")
         self.path_input.setReadOnly(True)
-        self.detect_btn = QPushButton("重新检测")
-        self.detect_btn.clicked.connect(self._detect_uv)
-        path_layout.addWidget(path_label)
-        path_layout.addWidget(self.path_input)
-        path_layout.addWidget(self.detect_btn)
-        uv_layout.addLayout(path_layout)
+        uv_layout.addWidget(self.path_input)
         
         # UV Mirror
         mirror_layout = QHBoxLayout()
@@ -347,49 +358,62 @@ class SettingsDialog(QDialog):
         else:
             self.status_label.setStyleSheet("color: #666666; font-style: italic;")
         
-        # Check if uv is installed
+        # Import UVManager here to avoid circular imports
         try:
-            result = subprocess.run(
-                ["uv", "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
+            from ..core.uv_manager import UVManager
+            uv_manager = UVManager()
+            self.uv_paths = uv_manager.find_uv_installations()
             
-            if result.returncode == 0:
-                version = result.stdout.strip()
+            if self.uv_paths:
+                # 清空下拉框并添加找到的uv路径
+                self.path_combo.clear()
                 
-                # Get uv path
-                if sys.platform == "win32":
-                    which_result = subprocess.run(
-                        ["where", "uv"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                else:
-                    which_result = subprocess.run(
-                        ["which", "uv"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
+                for uv_path in self.uv_paths:
+                    # 获取版本信息
+                    try:
+                        result = subprocess.run(
+                            [uv_path, "--version"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        if result.returncode == 0:
+                            version = result.stdout.strip()
+                            # 显示路径和版本
+                            display_text = f"{uv_path} ({version})"
+                        else:
+                            display_text = uv_path
+                    except:
+                        display_text = uv_path
+                    
+                    self.path_combo.addItem(display_text, uv_path)
                 
-                if which_result.returncode == 0:
-                    self.uv_path = which_result.stdout.strip().split('\n')[0]
+                # 启用下拉框并设置默认选择第一个
+                self.path_combo.setEnabled(True)
+                if self.uv_paths:
+                    self.path_combo.setCurrentIndex(0)
+                    self.uv_path = self.uv_paths[0]
                     self.path_input.setText(self.uv_path)
                 
                 # Check for mirror configuration
                 self._detect_mirror()
                 
-                self.status_label.setText(f"状态: ✓ 已安装 ({version})")
+                # 显示状态
+                count = len(self.uv_paths)
+                if count == 1:
+                    self.status_label.setText(f"状态: ✓ 已安装 1 个uv")
+                else:
+                    self.status_label.setText(f"状态: ✓ 已安装 {count} 个uv")
+                
                 if self.is_dark_theme:
                     self.status_label.setStyleSheet("color: #4ec9b0; font-weight: bold;")
                 else:
                     self.status_label.setStyleSheet("color: #28a745; font-weight: bold;")
             else:
                 self._uv_not_found()
-        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+                
+        except Exception as e:
+            print(f"检测uv时出错: {e}")
             self._uv_not_found()
     
     def _detect_mirror(self):
@@ -430,9 +454,32 @@ class SettingsDialog(QDialog):
         except Exception as e:
             self.mirror_input.setText(f"检测失败: {str(e)}")
     
+    def _on_uv_path_changed(self, display_text):
+        """处理uv路径选择变更"""
+        if not display_text:
+            return
+        
+        # 获取选择的uv路径
+        current_data = self.path_combo.currentData()
+        if current_data:
+            self.uv_path = current_data
+            self.path_input.setText(self.uv_path)
+            
+            # 更新UVManager的自定义路径
+            try:
+                from ..core.uv_manager import UVManager
+                uv_manager = UVManager()
+                uv_manager.set_custom_uv_path(self.uv_path)
+            except:
+                pass
+    
     def _uv_not_found(self):
         """Handle case when uv is not found"""
         self.uv_path = ""
+        self.uv_paths = []
+        self.path_combo.clear()
+        self.path_combo.addItem("未检测到 uv", "")
+        self.path_combo.setEnabled(False)
         self.path_input.setText("未检测到 uv")
         self.path_input.setPlaceholderText("请安装 uv")
         self.mirror_input.setText("N/A")
