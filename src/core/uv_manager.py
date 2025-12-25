@@ -64,6 +64,11 @@ class UVManager:
             print("错误: 未找到uv命令，请先安装uv")
             return False
         
+        if os.name == 'nt':
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+            
         try:
             # 使用 uv venv 创建虚拟环境（自动使用共享缓存）
             cmd = [uv_path, "venv", str(venv_path)]
@@ -75,7 +80,8 @@ class UVManager:
                 cwd=str(workflow_dir),
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
+                creationflags=creationflags
             )
             
             if result.returncode == 0:
@@ -115,6 +121,11 @@ class UVManager:
             print("错误: 未找到uv命令，请先安装uv")
             return False
         
+        if os.name == 'nt':
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+            
         try:
             # 使用 uv pip install 安装包（自动使用共享缓存）
             python_exe = self._get_python_executable(workflow_name)
@@ -132,7 +143,8 @@ class UVManager:
                     cmd,
                     capture_output=True,
                     text=True,
-                    timeout=300
+                    timeout=300,
+                    creationflags=creationflags
                 )
                 
                 if result.returncode != 0:
@@ -146,15 +158,25 @@ class UVManager:
         except Exception as e:
             print(f"安装包时出错: {e}")
             return False
-    
+            
     def _get_python_executable(self, workflow_name: str) -> Path:
         """获取虚拟环境中的Python可执行文件路径"""
         venv_path = self.get_venv_path(workflow_name)
         
         if os.name == 'nt':  # Windows
-            return venv_path / "Scripts" / "python.exe"
+            python_exe = venv_path / "Scripts" / "python.exe"
         else:  # Unix-like
-            return venv_path / "bin" / "python"
+            python_exe = venv_path / "bin" / "python"
+            
+        # 在冻结状态下（打包后），如果虚拟环境不存在，不能回退到 sys.executable
+        # 因为 sys.executable 是主程序 exe，会导致无限递归启动窗口
+        if getattr(sys, 'frozen', False):
+            if not python_exe.exists():
+                print(f"致命错误: 虚拟环境未找到且处于打包模式: {python_exe}")
+                # 这里我们返回一个不存在的路径，让后续调用失败而不是启动exe
+                return python_exe
+        
+        return python_exe
     
     def run_python_script(
         self,
@@ -179,9 +201,21 @@ class UVManager:
         
         # 如果虚拟环境不存在，使用当前Python
         if not python_exe.exists():
+            if getattr(sys, 'frozen', False):
+                return {
+                    "success": False,
+                    "output": "",
+                    "error": f"致命错误: 虚拟环境未找到({python_exe})且处于打包模式，无法执行脚本",
+                    "data": None
+                }
             print(f"虚拟环境不存在，使用当前Python: {sys.executable}")
             python_exe = Path(sys.executable)
         
+        if os.name == 'nt':
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+            
         try:
             # 准备输入数据
             input_json = json.dumps(input_data) if input_data else ""
@@ -192,7 +226,8 @@ class UVManager:
                 input=input_json,
                 capture_output=True,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
+                creationflags=creationflags
             )
             
             # 解析输出
@@ -267,13 +302,19 @@ class UVManager:
         """
         uv_paths = []
         
+        if os.name == 'nt':
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+
         # 1. 首先检查PATH中的uv命令
         try:
             result = subprocess.run(
                 ["where" if os.name == 'nt' else "which", "uv"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                creationflags=creationflags
             )
             if result.returncode == 0:
                 # where/which 可能返回多个路径
@@ -364,12 +405,18 @@ class UVManager:
     
     def _verify_uv_executable(self, uv_path: str) -> bool:
         """验证uv可执行文件是否可用"""
+        if os.name == 'nt':
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+            
         try:
             result = subprocess.run(
                 [uv_path, '--version'],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                creationflags=creationflags
             )
             return result.returncode == 0
         except:
@@ -397,13 +444,19 @@ class UVManager:
         if not uv_paths:
             return None
         
+        if os.name == 'nt':
+            creationflags = 0x08000000  # CREATE_NO_WINDOW
+        else:
+            creationflags = 0
+
         # 优先选择PATH中的uv（通常是第一个）
         try:
             result = subprocess.run(
                 ["where" if os.name == 'nt' else "which", "uv"],
                 capture_output=True,
                 text=True,
-                timeout=5
+                timeout=5,
+                creationflags=creationflags
             )
             if result.returncode == 0:
                 primary_path = result.stdout.strip().split('\n')[0].strip()
@@ -504,7 +557,7 @@ class UVManager:
             return self.custom_mirror
         return os.environ.get("UV_INDEX_URL", "")
 
-    def start_worker(self, workflow_name: str, timeout: int = 10) -> Optional[subprocess.Popen]:
+    def start_worker(self, workflow_name: str, timeout: int = 15) -> Optional[subprocess.Popen]:
         """
         启动工作流工作进程
         
@@ -516,11 +569,21 @@ class UVManager:
             进程对象，失败返回None
         """
         python_exe = self._get_python_executable(workflow_name)
+        
+        # 如果虚拟环境不存在，使用当前Python
         if not python_exe.exists():
             print(f"虚拟环境不存在: {python_exe}")
             return None
             
-        runner_script = Path(__file__).parent / "workflow_runner.py"
+        # 获取Runner脚本
+        if getattr(sys, 'frozen', False):
+            # 打包运行模式
+            base_dir = getattr(sys, '_MEIPASS', os.path.dirname(sys.executable))
+            runner_script = Path(base_dir) / "src" / "core" / "workflow_runner.py"
+        else:
+            # 源码运行模式
+            runner_script = Path(__file__).parent / "workflow_runner.py"
+            
         if not runner_script.exists():
             print(f"Runner脚本不存在: {runner_script}")
             return None
@@ -530,6 +593,11 @@ class UVManager:
             env = os.environ.copy()
             env["PYTHONIOENCODING"] = "utf-8"
             
+            if os.name == 'nt':
+                creationflags = 0x08000000  # CREATE_NO_WINDOW
+            else:
+                creationflags = 0
+
             # 启动进程
             process = subprocess.Popen(
                 [str(python_exe), str(runner_script)],
@@ -540,7 +608,8 @@ class UVManager:
                 bufsize=1,  #行缓冲
                 encoding='utf-8',
                 errors='replace',  # 忽略无法解码的字符
-                env=env
+                env=env,
+                creationflags=creationflags
             )
             
             # 等待READY信号

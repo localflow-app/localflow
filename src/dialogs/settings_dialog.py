@@ -23,13 +23,19 @@ class InstallWorker(QThread):
         try:
             self.progress.emit("正在安装 uv，请稍候...")
             
+            if os.name == 'nt':
+                creationflags = 0x08000000  # CREATE_NO_WINDOW
+            else:
+                creationflags = 0
+                
             # Run installation command
             process = subprocess.Popen(
                 self.install_command,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 shell=True,
-                text=True
+                text=True,
+                creationflags=creationflags
             )
             
             stdout, stderr = process.communicate()
@@ -260,13 +266,19 @@ class SettingsDialog(QDialog):
                 self.path_combo.clear()
                 
                 for uv_path in self.uv_paths:
+                    if os.name == 'nt':
+                        creationflags = 0x08000000
+                    else:
+                        creationflags = 0
+                        
                     # 获取版本信息
                     try:
                         result = subprocess.run(
                             [uv_path, "--version"],
                             capture_output=True,
                             text=True,
-                            timeout=5
+                            timeout=5,
+                            creationflags=creationflags
                         )
                         if result.returncode == 0:
                             version = result.stdout.strip()
@@ -337,13 +349,19 @@ class SettingsDialog(QDialog):
                 self.uv_mirror = env_mirror
                 self._set_mirror_selection(env_mirror)
             else:
+                if os.name == 'nt':
+                    creationflags = 0x08000000
+                else:
+                    creationflags = 0
+                    
                 # 尝试从 pip 配置检测
                 try:
                     pip_result = subprocess.run(
                         ["pip", "config", "get", "global.index-url"],
                         capture_output=True,
                         text=True,
-                        timeout=3
+                        timeout=3,
+                        creationflags=creationflags
                     )
                     if pip_result.returncode == 0:
                         pip_mirror = pip_result.stdout.strip()
