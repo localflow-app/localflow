@@ -1,55 +1,5 @@
 {
   "workflow_name": "工作流 1",
-  "nodes": [
-    {
-      "node_id": "node_1766677895400",
-      "node_type": "variable_assign",
-      "config": {
-        "value": "23",
-        "value_type": "int",
-        "variable_name": "x"
-      },
-      "inputs": [],
-      "outputs": [
-        "node_1766677896257"
-      ],
-      "position": {
-        "x": -273.0,
-        "y": -291.0
-      }
-    },
-    {
-      "node_id": "node_1766677896257",
-      "node_type": "variable_calc",
-      "config": {
-        "expression": "x + 32",
-        "output_var": "result"
-      },
-      "inputs": [
-        "node_1766677895400"
-      ],
-      "outputs": [],
-      "position": {
-        "x": 143.0,
-        "y": -131.0
-      }
-    },
-    {
-      "node_id": "node_1766837618120",
-      "node_type": "variable_calc",
-      "config": {},
-      "inputs": [],
-      "outputs": [],
-      "position": {
-        "x": -71.0,
-        "y": 34.0
-      }
-    }
-  ],
-  "edges": [
-    [
-      "node_1766677895400",
-      "node_1766677896257"
-    ]
-  ]
+  "nodes": [],
+  "edges": []
 }

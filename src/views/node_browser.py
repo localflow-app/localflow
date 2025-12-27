@@ -4,13 +4,14 @@
 """
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QListWidget, QListWidgetItem,
                                QLabel, QLineEdit, QPushButton, QHBoxLayout, QSplitter,
-                               QAbstractItemView, QTabWidget, QFrame)
+                               QAbstractItemView, QTabWidget, QFrame, QComboBox)
 from PySide6.QtCore import Qt, Signal, QMimeData
 from PySide6.QtGui import QIcon, QColor, QFont, QDrag
 
 from src.core.node_base import NodeType
 from src.core.theme_manager import ThemeManager
 from src.core.workflow_scanner import WorkflowScanner
+from src.core.node_registry import NodeRegistry, NodeSource, NODE_SOURCE_INFO, get_registry
 
 
 class DraggableListWidget(QListWidget):
@@ -113,9 +114,31 @@ class NodeBrowserWidget(QWidget):
         tab_layout.setContentsMargins(0, 0, 0, 0)
         tab_layout.setSpacing(5)
         
+        # 工具栏：添加节点按钮 + 来源筛选
+        toolbar_layout = QHBoxLayout()
+        toolbar_layout.setContentsMargins(5, 5, 5, 5)
+        
+        # 添加节点按钮
+        self.add_node_btn = QPushButton("➕ 添加节点")
+        self.add_node_btn.setStyleSheet(ThemeManager.get_button_style("primary"))
+        self.add_node_btn.clicked.connect(self._on_add_node_clicked)
+        toolbar_layout.addWidget(self.add_node_btn)
+        
+        toolbar_layout.addStretch()
+        
+        # 来源筛选下拉框
+        self.source_filter = QComboBox()
+        self.source_filter.addItems(["全部", "🏛️ 官方", "🐙 GitHub", "🏢 内网", "👤 自定义"])
+        self.source_filter.setStyleSheet(ThemeManager.get_input_style())
+        self.source_filter.setMinimumWidth(100)
+        self.source_filter.currentIndexChanged.connect(self._on_source_filter_changed)
+        toolbar_layout.addWidget(self.source_filter)
+        
+        tab_layout.addLayout(toolbar_layout)
+        
         # 搜索框
         search_layout = QHBoxLayout()
-        search_layout.setContentsMargins(5, 5, 5, 5)
+        search_layout.setContentsMargins(5, 0, 5, 5)
         
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("搜索节点...")
@@ -234,49 +257,10 @@ class NodeBrowserWidget(QWidget):
     
     def _load_nodes(self):
         """加载节点列表"""
-        self.nodes_data = [
-            {
-                "type": NodeType.VARIABLE_ASSIGN,
-                "name": "变量赋值",
-                "description": "创建变量并赋值",
-                "icon": "📝",
-                "color": "#4CAF50",
-                "category": "变量操作"
-            },
-            {
-                "type": NodeType.VARIABLE_CALC,
-                "name": "变量计算",
-                "description": "使用表达式计算变量",
-                "icon": "🔢",
-                "color": "#2196F3",
-                "category": "变量操作"
-            },
-            {
-                "type": NodeType.SQLITE_CONNECT,
-                "name": "SQLite连接",
-                "description": "连接SQLite数据库",
-                "icon": "🔌",
-                "color": "#FF9800",
-                "category": "数据库"
-            },
-            {
-                "type": NodeType.SQL_STATEMENT,
-                "name": "SQL语句",
-                "description": "构建SQL查询语句",
-                "icon": "📄",
-                "color": "#00BCD4",
-                "category": "数据库"
-            },
-            {
-                "type": NodeType.SQLITE_EXECUTE,
-                "name": "SQLite执行",
-                "description": "执行SQL语句",
-                "icon": "▶️",
-                "color": "#9C27B0",
-                "category": "数据库"
-            }
-        ]
-        
+        # 从节点注册表加载节点
+        self._registry = get_registry()
+        self.nodes_data = self._registry.get_all_nodes()
+        self._current_source_filter = None
         self._populate_list(self.nodes_data)
     
     def _populate_list(self, nodes):
@@ -286,40 +270,88 @@ class NodeBrowserWidget(QWidget):
         for node_data in nodes:
             item = QListWidgetItem()
             
-            # 设置文本
-            text = f"{node_data['icon']}  {node_data['name']}\n   {node_data['description']}"
+            # 获取来源信息
+            source = node_data.get('source', NodeSource.OFFICIAL)
+            source_info = NODE_SOURCE_INFO.get(source, NODE_SOURCE_INFO[NodeSource.OFFICIAL])
+            
+            # 是否已修改
+            is_modified = node_data.get('modified', False)
+            modified_marker = " ⚡已修改" if is_modified else ""
+            
+            # 设置文本：来源标签 + 名称 + 修改标记 (不使用图标)
+            source_tag = f"[{source_info['name']}]"
+            text = f"{source_tag} {node_data['name']}{modified_marker}\n{node_data.get('description', '')}"
             item.setText(text)
             
             # 设置数据
             item.setData(Qt.UserRole, node_data)
             
-            # 设置颜色标记
-            item.setForeground(QColor("#e0e0e0"))
+            # 根据来源设置颜色
+            if is_modified:
+                item.setForeground(QColor("#FFC107"))  # 修改过的用黄色
+            else:
+                item.setForeground(QColor(source_info['color']))
             
             self.node_list.addItem(item)
     
-    def _filter_nodes(self, text):
-        """过滤节点"""
-        if not text:
-            self._populate_list(self.nodes_data)
-            return
+    def _on_source_filter_changed(self, index):
+        """来源筛选变化"""
+        source_map = {
+            0: None,  # 全部
+            1: NodeSource.OFFICIAL,
+            2: NodeSource.GITHUB,
+            3: NodeSource.ENTERPRISE,
+            4: NodeSource.CUSTOM,
+        }
+        self._current_source_filter = source_map.get(index)
+        self._apply_filters()
+    
+    def _on_add_node_clicked(self):
+        """添加节点按钮点击"""
+        from src.dialogs.add_node_dialog import AddNodeDialog
+        dialog = AddNodeDialog(self)
+        if dialog.exec():
+            # 刷新节点列表
+            self._load_nodes()
+    
+    def _apply_filters(self):
+        """应用筛选条件"""
+        search_text = self.search_input.text().lower()
         
-        filtered = [
-            node for node in self.nodes_data
-            if text.lower() in node['name'].lower() or 
-               text.lower() in node['description'].lower() or
-               text.lower() in node['category'].lower()
-        ]
+        filtered = []
+        for node in self.nodes_data:
+            # 来源筛选
+            if self._current_source_filter is not None:
+                if node.get('source') != self._current_source_filter:
+                    continue
+            
+            # 搜索筛选
+            if search_text:
+                if (search_text not in node['name'].lower() and 
+                    search_text not in node['description'].lower() and
+                    search_text not in node['category'].lower()):
+                    continue
+            
+            filtered.append(node)
         
         self._populate_list(filtered)
+    
+    def _filter_nodes(self, text):
+        """过滤节点"""
+        self._apply_filters()
     
     def _on_node_clicked(self, item):
         """节点被点击"""
         node_data = item.data(Qt.UserRole)
-        self.node_selected.emit(node_data['type'].value, node_data)
+        # 获取节点类型字符串
+        node_type_str = node_data.get('type_str', '')
+        if node_data.get('type'):
+            node_type_str = node_data['type'].value
+        
+        self.node_selected.emit(node_type_str, node_data)
         
         # 更新使用情况列表
-        self._update_usage_list(node_data['type'].value)
+        self._update_usage_list(node_type_str)
     
     def _update_usage_list(self, node_type: str):
         """更新节点使用情况列表"""

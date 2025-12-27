@@ -10,6 +10,7 @@ from PySide6.QtGui import QFont
 
 from src.core.node_base import NodeType
 from src.core.theme_manager import ThemeManager
+from src.core.node_registry import get_registry, NODE_SOURCE_INFO, NodeSource
 
 
 class NodePropertiesWidget(QWidget):
@@ -167,6 +168,14 @@ class NodePropertiesWidget(QWidget):
         type_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']};")
         info_layout.addRow("节点类型:", type_label)
         
+        # 节点来源
+        registry = get_registry()
+        node_info = registry.get_node_info(node_type.value)
+        source_info = node_info.get('source_info', NODE_SOURCE_INFO[NodeSource.OFFICIAL])
+        source_label = QLabel(source_info['name'])
+        source_label.setStyleSheet(f"color: {source_info['color']}; font-weight: bold;")
+        info_layout.addRow("来源:", source_label)
+        
         info_group.setLayout(info_layout)
         self.content_layout.addWidget(info_group)
         
@@ -198,6 +207,10 @@ class NodePropertiesWidget(QWidget):
         button_layout.addWidget(apply_btn)
         
         self.content_layout.addLayout(button_layout)
+        
+        # 源代码区域（可折叠）
+        self._create_source_code_section(node_type.value)
+        
         self.content_layout.addStretch()
     
     def _create_variable_assign_form(self, layout, config):
@@ -303,3 +316,151 @@ class NodePropertiesWidget(QWidget):
         self.properties_updated.emit(self.current_node_id, config)
         
         print(f"节点 {self.current_node_id} 配置已更新: {config}")
+    
+    def _create_source_code_section(self, node_type: str):
+        """创建源代码展示区域"""
+        from PySide6.QtWidgets import QPlainTextEdit
+        
+        # 可折叠的源代码组
+        source_group = QGroupBox("📝 源代码 (点击展开)")
+        source_group.setCheckable(True)
+        source_group.setChecked(False)  # 默认折叠
+        source_layout = QVBoxLayout(source_group)
+        
+        # 源代码编辑器
+        self.source_code_edit = QPlainTextEdit()
+        self.source_code_edit.setReadOnly(True)  # 默认只读
+        self.source_code_edit.setMinimumHeight(150)
+        self.source_code_edit.setMaximumHeight(300)
+        self.source_code_edit.setStyleSheet(f"""
+            QPlainTextEdit {{
+                background-color: {ThemeManager.COLORS['background']};
+                color: {ThemeManager.COLORS['text']};
+                border: 1px solid {ThemeManager.COLORS['border']};
+                font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                font-size: 10pt;
+                padding: 8px;
+            }}
+        """)
+        
+        # 加载源代码
+        registry = get_registry()
+        source_code = registry.get_source_code(node_type)
+        self.source_code_edit.setPlainText(source_code)
+        self._current_node_type_for_source = node_type
+        
+        source_layout.addWidget(self.source_code_edit)
+        
+        # 按钮行
+        source_btn_layout = QHBoxLayout()
+        
+        # 复制按钮
+        copy_btn = QPushButton("📋 复制")
+        copy_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
+        copy_btn.clicked.connect(self._copy_source_code)
+        source_btn_layout.addWidget(copy_btn)
+        
+        # 编辑/保存按钮
+        self.edit_btn = QPushButton("✏️ 编辑")
+        self.edit_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
+        self.edit_btn.clicked.connect(self._toggle_edit_mode)
+        source_btn_layout.addWidget(self.edit_btn)
+        
+        # 重置按钮
+        reset_btn = QPushButton("↩️ 重置")
+        reset_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
+        reset_btn.clicked.connect(self._reset_source_code)
+        source_btn_layout.addWidget(reset_btn)
+        
+        source_btn_layout.addStretch()
+        
+        # 保存按钮
+        self.save_source_btn = QPushButton("💾 保存修改")
+        self.save_source_btn.setStyleSheet(ThemeManager.get_button_style("primary"))
+        self.save_source_btn.clicked.connect(self._save_source_code)
+        self.save_source_btn.setEnabled(False)  # 默认禁用
+        source_btn_layout.addWidget(self.save_source_btn)
+        
+        source_layout.addLayout(source_btn_layout)
+        
+        # 连接折叠状态
+        source_group.toggled.connect(lambda checked: self.source_code_edit.setVisible(checked))
+        self.source_code_edit.setVisible(False)  # 初始隐藏
+        
+        self.content_layout.addWidget(source_group)
+        self._source_group = source_group
+    
+    def _copy_source_code(self):
+        """复制源代码到剪贴板"""
+        source_code = self.source_code_edit.toPlainText()
+        QApplication.clipboard().setText(source_code)
+        print("源代码已复制到剪贴板")
+    
+    def _toggle_edit_mode(self):
+        """切换编辑模式"""
+        if self.source_code_edit.isReadOnly():
+            # 进入编辑模式
+            self.source_code_edit.setReadOnly(False)
+            self.edit_btn.setText("🔒 锁定")
+            self.save_source_btn.setEnabled(True)
+            self.source_code_edit.setStyleSheet(f"""
+                QPlainTextEdit {{
+                    background-color: #1a1a2e;
+                    color: {ThemeManager.COLORS['text']};
+                    border: 2px solid {ThemeManager.COLORS['accent']};
+                    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                    font-size: 10pt;
+                    padding: 8px;
+                }}
+            """)
+        else:
+            # 退出编辑模式
+            self.source_code_edit.setReadOnly(True)
+            self.edit_btn.setText("✏️ 编辑")
+            self.save_source_btn.setEnabled(False)
+            self.source_code_edit.setStyleSheet(f"""
+                QPlainTextEdit {{
+                    background-color: {ThemeManager.COLORS['background']};
+                    color: {ThemeManager.COLORS['text']};
+                    border: 1px solid {ThemeManager.COLORS['border']};
+                    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+                    font-size: 10pt;
+                    padding: 8px;
+                }}
+            """)
+    
+    def _reset_source_code(self):
+        """重置源代码"""
+        from PySide6.QtWidgets import QMessageBox
+        
+        reply = QMessageBox.question(
+            self, 
+            "确认重置", 
+            "确定要重置源代码到原始版本吗？\n\n您的修改将会丢失。",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            registry = get_registry()
+            registry.reset_to_original(self._current_node_type_for_source)
+            
+            # 重新加载
+            source_code = registry.get_source_code(self._current_node_type_for_source)
+            self.source_code_edit.setPlainText(source_code)
+            
+            print(f"源代码已重置: {self._current_node_type_for_source}")
+    
+    def _save_source_code(self):
+        """保存修改的源代码"""
+        from PySide6.QtWidgets import QMessageBox
+        
+        source_code = self.source_code_edit.toPlainText()
+        registry = get_registry()
+        
+        if registry.save_modified_source(self._current_node_type_for_source, source_code):
+            QMessageBox.information(self, "保存成功", "源代码已保存！\n\n节点将在下次使用时应用新代码。")
+            self._toggle_edit_mode()  # 退出编辑模式
+        else:
+            QMessageBox.warning(self, "保存失败", "无法保存源代码，请重试。")
+
