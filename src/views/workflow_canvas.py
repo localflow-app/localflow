@@ -318,6 +318,62 @@ class WorkflowCanvas(QGraphicsView):
         """节点被删除的回调"""
         print(f"Canvas收到节点删除通知: {node_id}")
         self.node_deleted.emit(node_id)
+    
+    def highlight_nodes_by_type(self, node_type: str):
+        """
+        高亮指定类型的所有节点
+        
+        Args:
+            node_type: 节点类型值 (如 "variable_assign")
+        """
+        from src.views.node_graphics import NodeGraphicsItem
+        
+        # 先清除所有选中
+        self._scene.clearSelection()
+        
+        # 选中并高亮指定类型的节点
+        for item in self._scene.items():
+            if isinstance(item, NodeGraphicsItem):
+                if item.node_type.value == node_type:
+                    item.setSelected(True)
+    
+    def select_nodes_by_ids(self, node_ids: list):
+        """
+        选中指定ID的节点
+        
+        Args:
+            node_ids: 节点ID列表
+        """
+        from src.views.node_graphics import NodeGraphicsItem
+        
+        # 先清除所有选中
+        self._scene.clearSelection()
+        
+        # 选中指定ID的节点
+        for item in self._scene.items():
+            if isinstance(item, NodeGraphicsItem):
+                if item.node_id in node_ids:
+                    item.setSelected(True)
+    
+    def get_all_nodes(self) -> list:
+        """
+        获取画布中所有节点
+        
+        Returns:
+            节点信息列表 [{"node_id": str, "node_type": str, ...}, ...]
+        """
+        from src.views.node_graphics import NodeGraphicsItem
+        
+        nodes = []
+        for item in self._scene.items():
+            if isinstance(item, NodeGraphicsItem):
+                nodes.append({
+                    "node_id": item.node_id,
+                    "node_type": item.node_type.value,
+                    "config": item.config
+                })
+        
+        return nodes
 
 
 class WorkflowGraphicsScene(QGraphicsScene):

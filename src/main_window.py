@@ -107,6 +107,13 @@ class MainWindow(QMainWindow):
         # 连接信号
         self.node_properties.properties_updated.connect(self._on_node_properties_updated)
         
+        # 连接节点浏览器信号
+        self.node_browser.open_workflow_requested.connect(self._on_open_workflow_from_browser)
+        self.node_browser.highlight_nodes_requested.connect(self._on_highlight_nodes_requested)
+        
+        # 切换Tab时更新节点浏览器统计
+        self.tabs.currentChanged.connect(self._on_tab_changed)
+        
         # 应用停靠窗口样式
         dock_style = ThemeManager.get_dock_widget_style()
         self.node_browser_dock.setStyleSheet(dock_style)
@@ -140,6 +147,49 @@ class MainWindow(QMainWindow):
         if isinstance(current_widget, WorkflowTabWidget):
             current_widget.update_node_config(node_id, config)
     
+    def _on_open_workflow_from_browser(self, workflow_name: str, workflow_path: str, node_type: str):
+        """从节点浏览器请求打开工作流"""
+        # 检查工作流是否已经打开
+        for i in range(self.tabs.count()):
+            widget = self.tabs.widget(i)
+            if isinstance(widget, WorkflowTabWidget) and widget.workflow_name == workflow_name:
+                # 已经打开，切换到该标签并高亮节点
+                self.tabs.setCurrentIndex(i)
+                widget.canvas.highlight_nodes_by_type(node_type)
+                return
+        
+        # 需要打开工作流，复用OverviewWidget的逻辑
+        overview_widget = self.tabs.widget(0)
+        if hasattr(overview_widget, '_on_open_workflow'):
+            overview_widget._on_open_workflow(workflow_name, workflow_path)
+            
+            # 等待工作流打开后高亮节点
+            from PySide6.QtCore import QTimer
+            QTimer.singleShot(100, lambda: self._highlight_after_open(node_type))
+    
+    def _highlight_after_open(self, node_type: str):
+        """工作流打开后高亮节点"""
+        current_widget = self.tabs.currentWidget()
+        if isinstance(current_widget, WorkflowTabWidget):
+            current_widget.canvas.highlight_nodes_by_type(node_type)
+    
+    def _on_highlight_nodes_requested(self, node_type: str):
+        """处理高亮节点请求"""
+        current_widget = self.tabs.currentWidget()
+        if isinstance(current_widget, WorkflowTabWidget):
+            current_widget.canvas.highlight_nodes_by_type(node_type)
+    
+    def _on_tab_changed(self, index: int):
+        """Tab切换时更新节点浏览器统计"""
+        widget = self.tabs.widget(index)
+        if isinstance(widget, WorkflowTabWidget):
+            # 获取工作流中的节点数据
+            nodes_data = widget.canvas.get_all_nodes()
+            self.node_browser.update_workflow_stats(widget.workflow_name, nodes_data)
+        else:
+            # 非工作流标签（如Overview）
+            self.node_browser.update_workflow_stats(None)
+
     def add_workflow_tab(self):
         """Add a new workflow tab"""
         self.workflow_count += 1
