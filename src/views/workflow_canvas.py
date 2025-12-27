@@ -73,10 +73,15 @@ class WorkflowCanvas(QGraphicsView):
             
             # 检查是否点击节点
             from src.views.node_graphics import NodeGraphicsItem
-            if isinstance(item_at_pos, NodeGraphicsItem):
-                # 如果点击的是已经选中的节点，不需要做额外处理
-                # Qt会自动处理选中状态
-                self.node_selected.emit(item_at_pos)
+            
+            # 找到点击的节点（可能是点击了节点的子项）
+            node_item = item_at_pos
+            while node_item and not isinstance(node_item, NodeGraphicsItem):
+                node_item = node_item.parentItem()
+                
+            if node_item:
+                # 发射选中信号
+                self.node_selected.emit(node_item)
             else:
                 # 点击空白区域，清除所有选中
                 self._scene.clearSelection()

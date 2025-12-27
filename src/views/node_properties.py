@@ -84,32 +84,32 @@ class NodePropertiesWidget(QWidget):
     
     def _clear_content_immediately(self):
         """立即清空内容区域的所有控件"""
-        # 获取所有子控件并立即删除
-        children = self.content_widget.findChildren(QWidget)
-        for child in children:
-            child.setParent(None)
-            child.deleteLater()
+        # 强制停止计时器
+        self._load_timer.stop()
         
-        # 强制处理事件队列
-        QApplication.processEvents()
-        
-        # 确保布局也是空的
+        # 确保布局中的所有控件都被移除并销毁
         while self.content_layout.count():
             item = self.content_layout.takeAt(0)
             if item.widget():
                 widget = item.widget()
                 widget.setParent(None)
                 widget.deleteLater()
+            elif item.layout():
+                # 清除子布局
+                self._clear_layout(item.layout())
+    
+    def _clear_layout(self, layout):
+        """递归清除布局"""
+        while layout.count():
+            item = layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+            elif item.layout():
+                self._clear_layout(item.layout())
     
     def clear_properties(self):
         """清空属性面板"""
-        # 清除所有子部件（立即删除）
-        while self.content_layout.count():
-            item = self.content_layout.takeAt(0)
-            if item.widget():
-                widget = item.widget()
-                widget.setParent(None)  # 立即从父控件移除
-                widget.deleteLater()
+        self._clear_content_immediately()
         
         # 显示空提示
         self.empty_label = QLabel("请选择一个节点")
@@ -120,18 +120,18 @@ class NodePropertiesWidget(QWidget):
         
         self.current_node_id = None
         self.current_node_type = None
-        self.config_widgets = {}  # 清空配置控件字典
+        self.config_widgets = {}
     
     def load_node_properties(self, node_id: str, node_type: NodeType, config: dict):
-        """加载节点属性（使用延迟加载优化快速切换）"""
-        # 停止之前的定时器
+        """加载节点属性（优化响应速度）"""
+        # 停止之前的计时器
         self._load_timer.stop()
         
         # 保存待加载的数据
         self._pending_load = (node_id, node_type, config)
         
-        # 设置短暂延迟（50ms），如果快速切换会被取消
-        self._load_timer.start(50)
+        # 极短延迟（10ms）用于防抖，减少肉眼可察觉的延迟
+        self._load_timer.start(10)
     
     def _do_load_node_properties(self):
         """实际执行加载节点属性"""
@@ -141,15 +141,11 @@ class NodePropertiesWidget(QWidget):
         node_id, node_type, config = self._pending_load
         self._pending_load = None
         
-        # 如果节点未改变，不重新加载
-        if self.current_node_id == node_id:
-            return
+        # 强制清除所有现有内容
+        self._clear_content_immediately()
         
         self.current_node_id = node_id
         self.current_node_type = node_type
-        
-        # 强制清除所有现有内容（防止重叠）
-        self._clear_content_immediately()
         
         # 清空配置控件字典
         self.config_widgets = {}
