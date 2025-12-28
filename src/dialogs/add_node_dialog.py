@@ -167,14 +167,13 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入 GitHub 仓库 URL")
                 return
             
-            # Phase 1: 模拟导入成功
-            QMessageBox.information(
+            # GitHub 导入功能待实现
+            QMessageBox.warning(
                 self, 
-                "功能开发中", 
-                f"GitHub 节点导入功能正在开发中...\n\n仓库: {url}\n\n"
-                "Phase 2 将实现实际的仓库克隆和节点注册。"
+                "功能待实现", 
+                f"GitHub 节点导入功能尚未实现。\n\n仓库: {url}"
             )
-            self.accept()
+            return
             
         elif selected_id == 2:
             # 内网导入
@@ -183,14 +182,13 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入内网 Git 仓库 URL")
                 return
             
-            # Phase 1: 模拟导入成功
-            QMessageBox.information(
+            # 内网导入功能待实现
+            QMessageBox.warning(
                 self, 
-                "功能开发中", 
-                f"内网节点导入功能正在开发中...\n\n仓库: {url}\n\n"
-                "Phase 2 将实现实际的仓库克隆和节点注册。"
+                "功能待实现", 
+                f"内网节点导入功能尚未实现。\n\n仓库: {url}"
             )
-            self.accept()
+            return
             
         elif selected_id == 3:
             # 自定义节点
@@ -201,13 +199,12 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入节点名称")
                 return
             
-            # Phase 1: 模拟创建成功
-            QMessageBox.information(
+            # 自定义节点创建功能待实现
+            QMessageBox.warning(
                 self, 
-                "功能开发中", 
-                f"自定义节点创建功能正在开发中...\n\n"
+                "功能待实现", 
+                f"自定义节点创建功能尚未实现。\n\n"
                 f"节点名称: {name}\n"
-                f"节点描述: {desc or '(无)'}\n\n"
-                "Phase 2 将实现实际的节点创建和源代码编辑器。"
+                f"节点描述: {desc or '(无)'}"
             )
-            self.accept()
+            return

@@ -48,7 +48,6 @@ class NodeRegistry:
         self._nodes: Dict[str, NodeDefinition] = {}
         self._user_data_dir = Path("user_data")
         self._load_official_nodes()
-        self._load_mock_external_nodes()  # Phase 1: 使用mock数据
     
     def _load_official_nodes(self):
         """加载官方节点"""
@@ -103,7 +102,7 @@ class NodeRegistry:
                     "expression": {"type": "string", "label": "表达式"},
                     "output_var": {"type": "string", "label": "输出变量"}
                 },
-                modified=True  # Mock: 模拟用户已修改
+                modified=False
             ),
             NodeDefinition(
                 node_type="sqlite_connect",
@@ -203,177 +202,7 @@ class NodeRegistry:
         for node in official_nodes:
             self._nodes[node.node_type] = node
     
-    def _load_mock_external_nodes(self):
-        """加载Mock外部节点（Phase 1测试用）"""
-        mock_nodes = [
-            # GitHub 节点
-            NodeDefinition(
-                node_type="http_request",
-                name="HTTP请求",
-                description="发送HTTP GET/POST请求",
-                source=NodeSource.GITHUB,
-                category="网络",
-                source_code='''def execute(self, input_data):
-    """发送HTTP请求"""
-    import requests
-    
-    url = self.config.get("url", "")
-    method = self.config.get("method", "GET")
-    output_var = self.config.get("output_var", "response")
-    
-    if method == "GET":
-        response = requests.get(url)
-    else:
-        response = requests.post(url, json=input_data)
-    
-    return {
-        **input_data,
-        output_var: {
-            "status_code": response.status_code,
-            "body": response.text
-        }
-    }''',
-                config_schema={
-                    "url": {"type": "string", "label": "请求URL"},
-                    "method": {"type": "enum", "options": ["GET", "POST"], "label": "请求方法"},
-                    "output_var": {"type": "string", "label": "输出变量"}
-                },
-                repo_url="https://github.com/example/http-node"
-            ),
-            NodeDefinition(
-                node_type="json_parse",
-                name="JSON解析",
-                description="解析JSON字符串为对象",
-                source=NodeSource.GITHUB,
-                category="数据处理",
-                source_code='''def execute(self, input_data):
-    """解析JSON字符串"""
-    import json
-    
-    json_var = self.config.get("json_var", "json_str")
-    output_var = self.config.get("output_var", "parsed")
-    
-    json_str = input_data.get(json_var, "{}")
-    parsed = json.loads(json_str)
-    
-    return {**input_data, output_var: parsed}''',
-                config_schema={
-                    "json_var": {"type": "string", "label": "JSON变量"},
-                    "output_var": {"type": "string", "label": "输出变量"}
-                },
-                repo_url="https://github.com/example/json-node"
-            ),
-            
-            # 内网节点
-            NodeDefinition(
-                node_type="enterprise_db",
-                name="企业数据库",
-                description="连接企业内部Oracle数据库",
-                source=NodeSource.ENTERPRISE,
-                category="企业内部",
-                source_code='''def execute(self, input_data):
-    """连接企业数据库"""
-    # 注意：需要安装 cx_Oracle
-    import cx_Oracle
-    
-    host = self.config.get("host", "db.internal.company.com")
-    port = self.config.get("port", "1521")
-    service = self.config.get("service", "ORCL")
-    username = self.config.get("username", "")
-    password = self.config.get("password", "")
-    
-    dsn = cx_Oracle.makedsn(host, port, service_name=service)
-    conn = cx_Oracle.connect(username, password, dsn)
-    
-    return {
-        **input_data,
-        "enterprise_conn": {
-            "type": "oracle",
-            "connected": True
-        }
-    }''',
-                config_schema={
-                    "host": {"type": "string", "label": "主机地址"},
-                    "port": {"type": "string", "label": "端口"},
-                    "service": {"type": "string", "label": "服务名"},
-                    "username": {"type": "string", "label": "用户名"},
-                    "password": {"type": "password", "label": "密码"}
-                },
-                repo_url="git@internal.company.com:nodes/enterprise-db.git"
-            ),
-            NodeDefinition(
-                node_type="enterprise_mq",
-                name="企业消息队列",
-                description="发送消息到企业MQ",
-                source=NodeSource.ENTERPRISE,
-                category="企业内部",
-                source_code='''def execute(self, input_data):
-    """发送消息到企业MQ"""
-    queue_name = self.config.get("queue_name", "default")
-    message_var = self.config.get("message_var", "message")
-    
-    message = input_data.get(message_var, "")
-    
-    # 模拟发送到MQ
-    print(f"发送消息到队列 {queue_name}: {message}")
-    
-    return {
-        **input_data,
-        "mq_result": {"sent": True, "queue": queue_name}
-    }''',
-                config_schema={
-                    "queue_name": {"type": "string", "label": "队列名称"},
-                    "message_var": {"type": "string", "label": "消息变量"}
-                },
-                repo_url="git@internal.company.com:nodes/mq-node.git"
-            ),
-            
-            # 自定义节点
-            NodeDefinition(
-                node_type="custom_logger",
-                name="日志记录",
-                description="我的自定义日志节点",
-                source=NodeSource.CUSTOM,
-                category="自定义",
-                source_code='''def execute(self, input_data):
-    """记录日志"""
-    log_level = self.config.get("log_level", "INFO")
-    message_var = self.config.get("message_var", "log_message")
-    
-    message = input_data.get(message_var, str(input_data))
-    
-    print(f"[{log_level}] {message}")
-    
-    return input_data''',
-                config_schema={
-                    "log_level": {"type": "enum", "options": ["DEBUG", "INFO", "WARNING", "ERROR"], "label": "日志级别"},
-                    "message_var": {"type": "string", "label": "消息变量"}
-                }
-            ),
-            NodeDefinition(
-                node_type="custom_delay",
-                name="延时等待",
-                description="等待指定时间后继续",
-                source=NodeSource.CUSTOM,
-                category="自定义",
-                source_code='''def execute(self, input_data):
-    """延时等待"""
-    import time
-    
-    seconds = float(self.config.get("seconds", "1"))
-    
-    print(f"等待 {seconds} 秒...")
-    time.sleep(seconds)
-    
-    return input_data''',
-                config_schema={
-                    "seconds": {"type": "string", "label": "等待秒数"}
-                }
-            ),
-        ]
-        
-        for node in mock_nodes:
-            self._nodes[node.node_type] = node
+
     
     # === 查询方法 ===
     
@@ -445,7 +274,7 @@ class NodeRegistry:
     
     def reset_to_original(self, node_type: str) -> bool:
         """重置为原始源代码"""
-        # Phase 1: 简单实现，删除修改文件
+        # 简单实现，删除修改文件
         node = self._nodes.get(node_type)
         if not node:
             return False
