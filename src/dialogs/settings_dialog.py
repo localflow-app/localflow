@@ -527,9 +527,10 @@ class SettingsDialog(QDialog):
         self.path_combo.clear()
         self.path_combo.addItem("未检测到 uv", "")
         self.path_combo.addItem("自定义路径...", "custom")
-        self.path_combo.setEnabled(False)
+        self.path_combo.setEnabled(True)  # 允许用户选择自定义路径
+        self.path_combo.setCurrentIndex(1)  # 默认选中"自定义路径..."
         self.path_input.setText("未检测到 uv")
-        self.path_input.setPlaceholderText("请安装 uv")
+        self.path_input.setPlaceholderText("请选择自定义路径或安装 uv")
         self.mirror_combo.setCurrentIndex(0)
         self.status_label.setText("状态: ✗ 未安装")
         self.status_label.setStyleSheet(f"color: {ThemeManager.COLORS['error']}; font-weight: bold;")
