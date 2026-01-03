@@ -51,21 +51,74 @@ class WorkflowExecutor:
         
         Args:
             python_version: Python版本
-            packages: 需要安装的包列表
+            packages: 需要额外安装的包列表
         
         Returns:
             是否准备成功
         """
+        # 1. 自动从节点收集依赖
+        all_dependencies = self._collect_node_dependencies()
+        
+        # 2. 合并手动指定的包
+        if packages:
+            all_dependencies.extend(packages)
+            
+        # 3. 解析依赖（去重等）
+        resolved_packages = self._resolve_dependencies(all_dependencies)
+        
         # 创建虚拟环境
         if not self.uv_manager.create_workflow_env(self.workflow_name, python_version):
             return False
         
         # 安装依赖包
-        if packages:
-            if not self.uv_manager.install_packages(self.workflow_name, packages):
+        if resolved_packages:
+            print(f"正在安装工作流依赖: {resolved_packages}")
+            if not self.uv_manager.install_packages(self.workflow_name, resolved_packages):
                 return False
         
         return True
+
+    def _collect_node_dependencies(self) -> List[str]:
+        """收集工作流中所有节点声明的依赖"""
+        from .node_registry import get_registry
+        registry = get_registry()
+        dependencies = []
+        
+        # 检查每个节点的定义，获取其 dependencies 列表
+        seen_types = set()
+        for node in self.nodes.values():
+            node_type_str = node.node_type if isinstance(node.node_type, str) else node.node_type.value
+            if node_type_str in seen_types:
+                continue
+                
+            node_def = registry.get_node(node_type_str)
+            if node_def and node_def.dependencies:
+                dependencies.extend(node_def.dependencies)
+            seen_types.add(node_type_str)
+            
+        return dependencies
+
+    def _resolve_dependencies(self, dependencies: List[str]) -> List[str]:
+        """解析并去重依赖，检测基本冲突"""
+        if not dependencies:
+            return []
+            
+        # 1. 清理和去重
+        cleaned = sorted(list(set([d.strip() for d in dependencies if d.strip()])))
+        
+        # 2. 基本冲突检测 (同一包名由于不同版本声明)
+        packages = {}
+        for dep in cleaned:
+            # 简单分割包名和版本提示 (例如 requests>=2.0.0)
+            import re
+            match = re.match(r'^([a-zA-Z0-9_\-\[\]]+)', dep)
+            if match:
+                pkg_name = match.group(1).lower().replace('_', '-')
+                if pkg_name in packages and packages[pkg_name] != dep:
+                    print(f"警告: 检测到潜在依赖冲突: '{packages[pkg_name]}' vs '{dep}'")
+                packages[pkg_name] = dep
+                
+        return cleaned
     
     def _topological_sort(self) -> List[str]:
         """
@@ -243,7 +296,8 @@ class WorkflowExecutor:
         workflow_data = {
             "workflow_name": self.workflow_name,
             "nodes": [],
-            "edges": self.edges
+            "edges": self.edges,
+            "dependencies": self._collect_node_dependencies()  # 保存依赖快照
         }
         
         # 保存节点数据（包括位置）
