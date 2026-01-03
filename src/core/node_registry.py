@@ -39,6 +39,8 @@ class NodeDefinition:
     config_schema: Dict      # 配置项定义
     modified: bool = False   # 是否被用户修改
     repo_url: str = ""       # 来源仓库URL（GitHub/内网节点）
+    dependencies: List[str] = field(default_factory=list)  # pip 依赖包列表
+    version: str = "1.0.0"   # 节点版本
 
 
 class NodeRegistry:
@@ -48,6 +50,7 @@ class NodeRegistry:
         self._nodes: Dict[str, NodeDefinition] = {}
         self._user_data_dir = Path("user_data")
         self._load_official_nodes()
+        self._load_external_nodes()
     
     def _load_official_nodes(self):
         """加载官方节点"""
@@ -202,6 +205,66 @@ class NodeRegistry:
         for node in official_nodes:
             self._nodes[node.node_type] = node
     
+    def _load_external_nodes(self):
+        """加载外部和下载的节点"""
+        # 加载自定义节点
+        from src.core.custom_node_manager import CustomNodeManager
+        manager = CustomNodeManager(self._user_data_dir)
+        custom_nodes = manager.load_all_custom_nodes()
+        for node in custom_nodes:
+            self._nodes[node.node_type] = node
+            
+        # 加载外部下载的节点 (GitHub/Enterprise)
+        external_dir = self._user_data_dir / "external_nodes"
+        if not external_dir.exists():
+            return
+            
+        # 遍历外部节点目录
+        for source_dir in external_dir.iterdir():
+            if not source_dir.is_dir(): continue
+            for node_dir in source_dir.iterdir():
+                if not node_dir.is_dir(): continue
+                
+                config_file = node_dir / "node.json"
+                if config_file.exists():
+                    try:
+                        with open(config_file, 'r', encoding='utf-8') as f:
+                            config = json.load(f)
+                            # 从配置文件创建 NodeDefinition
+                            node_def = NodeDefinition(
+                                node_type=config.get("node_type", node_dir.name),
+                                name=config.get("name", node_dir.name),
+                                description=config.get("description", ""),
+                                source=NodeSource(source_dir.name),
+                                category=config.get("category", "外部"),
+                                source_code="", # 将在运行时按需加载或通过 read_file
+                                config_schema=config.get("config_schema", {}),
+                                repo_url=config.get("repo_url", ""),
+                                dependencies=config.get("dependencies", []),
+                                version=config.get("version", "1.0.0")
+                            )
+                            # 读取源代码
+                            entry_file = node_dir / config.get("entry_file", "node.py")
+                            if entry_file.exists():
+                                with open(entry_file, 'r', encoding='utf-8') as sf:
+                                    node_def.source_code = sf.read()
+                                    
+                            self._nodes[node_def.node_type] = node_def
+                    except Exception as e:
+                        print(f"加载外部节点失败 {node_dir}: {e}")
+
+    def register_external_node(self, node_def: NodeDefinition) -> bool:
+        """注册外部节点"""
+        self._nodes[node_def.node_type] = node_def
+        return True
+
+    def unregister_node(self, node_type: str) -> bool:
+        """注销节点"""
+        if node_type in self._nodes:
+            del self._nodes[node_type]
+            return True
+        return False
+    
 
     
     # === 查询方法 ===
@@ -241,6 +304,8 @@ class NodeRegistry:
             "modified": node.modified,
             "color": NODE_SOURCE_INFO[node.source]["color"],
             "repo_url": node.repo_url,
+            "dependencies": node.dependencies,
+            "version": node.version
         }
     
     # === 源代码管理 ===
