@@ -37,7 +37,14 @@ class DraggableListWidget(QListWidget):
         mime_data = QMimeData()
         
         # 设置节点类型数据
-        mime_data.setText(node_data['type'].value)
+        node_type_str = node_data.get('type_str')
+        if not node_type_str and node_data.get('type'):
+            node_type_str = node_data['type'].value
+            
+        if not node_type_str:
+            return
+            
+        mime_data.setText(node_type_str)
         drag.setMimeData(mime_data)
         
         # 执行拖拽
@@ -398,7 +405,12 @@ class NodeBrowserWidget(QWidget):
         widget = self.parent()
         while widget:
             if hasattr(widget, 'add_node_to_canvas'):
-                widget.add_node_to_canvas(node_data['type'])
+                node_type_str = node_data.get('type_str')
+                if not node_type_str and node_data.get('type'):
+                    node_type_str = node_data['type'].value
+                    
+                if node_type_str:
+                    widget.add_node_to_canvas(node_type_str)
                 break
             widget = widget.parent() if hasattr(widget, 'parent') else None
     

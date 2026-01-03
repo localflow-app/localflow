@@ -161,13 +161,14 @@ class NodePropertiesWidget(QWidget):
         info_layout.addRow("节点ID:", id_label)
         
         # 节点类型
-        type_label = QLabel(node_type.value)
+        node_type_val = node_type.value if hasattr(node_type, "value") else str(node_type)
+        type_label = QLabel(node_type_val)
         type_label.setStyleSheet(f"color: {ThemeManager.COLORS['text_secondary']};")
         info_layout.addRow("节点类型:", type_label)
         
         # 节点来源
         registry = get_registry()
-        node_info = registry.get_node_info(node_type.value)
+        node_info = registry.get_node_info(node_type_val)
         source_info = node_info.get('source_info', NODE_SOURCE_INFO[NodeSource.OFFICIAL])
         source_label = QLabel(source_info['name'])
         source_label.setStyleSheet(f"color: {source_info['color']}; font-weight: bold;")
@@ -205,7 +206,8 @@ class NodePropertiesWidget(QWidget):
         
         # 针对外部节点或自定义节点的额外操作
         registry = get_registry()
-        node_def = registry.get_node(node_type.value)
+        node_type_val = node_type.value if hasattr(node_type, "value") else str(node_type)
+        node_def = registry.get_node(node_type_val)
         if node_def and node_def.source in [NodeSource.CUSTOM, NodeSource.GITHUB]:
             if node_def.source == NodeSource.CUSTOM:
                 export_btn = QPushButton("📦 导出节点")
@@ -221,7 +223,8 @@ class NodePropertiesWidget(QWidget):
         self.content_layout.addLayout(button_layout)
         
         # 源代码区域（可折叠）
-        self._create_source_code_section(node_type.value)
+        node_type_val = node_type.value if hasattr(node_type, "value") else str(node_type)
+        self._create_source_code_section(node_type_val)
         
         self.content_layout.addStretch()
     

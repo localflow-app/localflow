@@ -276,9 +276,24 @@ class NodeRegistry:
             result.append(self._node_to_dict(node))
         return result
     
-    def get_node(self, node_type: str) -> Optional[NodeDefinition]:
-        """获取指定节点"""
-        return self._nodes.get(node_type)
+    def get_node(self, node_type) -> Optional[NodeDefinition]:
+        """获取指定节点 (支持枚举 or 字符串)"""
+        # 直接尝试获取
+        node = self._nodes.get(node_type)
+        if node:
+            return node
+            
+        # 如果是字符串，尝试匹配枚举键
+        if isinstance(node_type, str):
+            for key, val in self._nodes.items():
+                if hasattr(key, 'value') and key.value == node_type:
+                    return val
+        
+        # 如果是枚举，尝试直接用其值字符串匹配
+        if hasattr(node_type, 'value'):
+            return self._nodes.get(node_type.value)
+            
+        return None
     
     def get_nodes_by_source(self, source: NodeSource) -> List[NodeDefinition]:
         """按来源获取节点"""
@@ -310,9 +325,9 @@ class NodeRegistry:
     
     # === 源代码管理 ===
     
-    def get_source_code(self, node_type: str) -> str:
+    def get_source_code(self, node_type) -> str:
         """获取节点源代码"""
-        node = self._nodes.get(node_type)
+        node = self.get_node(node_type)
         if node:
             return node.source_code
         return ""
@@ -363,9 +378,9 @@ class NodeRegistry:
         node = self._nodes.get(node_type)
         return node.modified if node else False
     
-    def get_node_info(self, node_type: str) -> dict:
+    def get_node_info(self, node_type) -> dict:
         """获取节点显示信息"""
-        node = self._nodes.get(node_type)
+        node = self.get_node(node_type)
         if node:
             return {
                 "name": node.name,

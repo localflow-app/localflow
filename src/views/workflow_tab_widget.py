@@ -112,7 +112,8 @@ class WorkflowTabWidget(QWidget):
     def _on_node_added(self, node_item):
         """节点被添加到画布"""
         self.nodes[node_item.node_id] = node_item
-        print(f"节点已添加: {node_item.node_id} ({node_item.node_type.value})")
+        node_type_val = node_item.node_type.value if hasattr(node_item.node_type, "value") else str(node_item.node_type)
+        print(f"节点已添加: {node_item.node_id} ({node_type_val})")
         self._set_modified(True)
     
     def _on_node_selected(self, node_item):
@@ -195,9 +196,30 @@ class WorkflowTabWidget(QWidget):
         }
         
         for node_id, node_item in self.nodes.items():
-            node_class = node_classes.get(node_item.node_type)
+            node_type = node_item.node_type
+            node_class = node_classes.get(node_type)
+            
+            if not node_class:
+                # 尝试通过字符串匹配枚举
+                if isinstance(node_type, str):
+                    for nt, cls in node_classes.items():
+                        if nt.value == node_type:
+                            node_class = cls
+                            break
+            
             if node_class:
                 node = node_class(node_id, node_item.config)
+                self.executor.add_node(node)
+            else:
+                # 这是一个自定义或外部节点
+                from src.core.node_base import CustomNode
+                from src.core.node_registry import get_registry
+                
+                node_type_str = node_type.value if hasattr(node_type, "value") else str(node_type)
+                node_def = get_registry().get_node(node_type_str)
+                
+                node = CustomNode(node_id, node_type_str, node_item.config)
+                node.source_code = source_code
                 self.executor.add_node(node)
         
         # 添加连接
@@ -278,14 +300,35 @@ class WorkflowTabWidget(QWidget):
             # 收集节点位置
             node_positions = {}
             for node_id, node_item in self.nodes.items():
-                node_class = node_classes.get(node_item.node_type)
+                node_type = node_item.node_type
+                node_class = node_classes.get(node_type)
+                
+                # 同执行逻辑，也尝试字符串匹配
+                if not node_class and isinstance(node_type, str):
+                    for nt, cls in node_classes.items():
+                        if nt.value == node_type:
+                            node_class = cls
+                            break
+                
                 if node_class:
                     node = node_class(node_id, node_item.config)
-                    self.executor.add_node(node)
+                else:
+                    # 外部/自定义节点
+                    from src.core.node_base import CustomNode
+                    from src.core.node_registry import get_registry
                     
-                    # 保存节点位置
-                    pos = node_item.pos()
-                    node_positions[node_id] = {"x": pos.x(), "y": pos.y()}
+                    node_type_str = node_type.value if hasattr(node_type, "value") else str(node_type)
+                    node_def = get_registry().get_node(node_type_str)
+                    
+                    source_code = node_def.source_code if node_def else ""
+                    node = CustomNode(node_id, node_type_str, node_item.config)
+                    node.source_code = source_code
+                
+                self.executor.add_node(node)
+                
+                # 保存节点位置
+                pos = node_item.pos()
+                node_positions[node_id] = {"x": pos.x(), "y": pos.y()}
             
             for from_id, to_id in self.connections:
                 self.executor.add_edge(from_id, to_id)

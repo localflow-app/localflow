@@ -24,13 +24,13 @@ class NodeGraphicsItem(QGraphicsItem):
         NodeType.SQL_STATEMENT: "#00BCD4",      # 青色
     }
     
-    def __init__(self, node_id: str, node_type: NodeType, title: str = None, parent=None):
+    def __init__(self, node_id: str, node_type, title: str = None, parent=None):
         """
         初始化节点图形项
         
         Args:
             node_id: 节点ID
-            node_type: 节点类型
+            node_type: 节点类型 (NodeType 枚举或字符串)
             title: 节点标题
             parent: 父项
         """
@@ -38,7 +38,10 @@ class NodeGraphicsItem(QGraphicsItem):
         
         self.node_id = node_id
         self.node_type = node_type
-        self.title = title or node_type.value
+        
+        # 处理节点值和标题
+        node_type_val = node_type.value if hasattr(node_type, "value") else str(node_type)
+        self.title = title or node_type_val
         self.config = {}  # 节点配置
         
         # 尺寸
@@ -48,7 +51,8 @@ class NodeGraphicsItem(QGraphicsItem):
         self.corner_radius = 8
         
         # 颜色
-        self.color = QColor(self.NODE_COLORS.get(node_type, "#607D8B"))
+        color_hex = self.NODE_COLORS.get(node_type, "#607D8B")
+        self.color = QColor(color_hex)
         self.header_color = self.color.darker(110)
         self.body_color = QColor(ThemeManager.COLORS['surface'])
         self.border_color = QColor(ThemeManager.COLORS['border'])
@@ -92,7 +96,8 @@ class NodeGraphicsItem(QGraphicsItem):
         )
         
         # 节点类型文本
-        self.type_item = QGraphicsTextItem(self.node_type.value, self)
+        node_type_val = self.node_type.value if hasattr(self.node_type, "value") else str(self.node_type)
+        self.type_item = QGraphicsTextItem(node_type_val, self)
         self.type_item.setDefaultTextColor(QColor(ThemeManager.COLORS['text_secondary']))
         font = QFont("Arial", 8)
         self.type_item.setFont(font)

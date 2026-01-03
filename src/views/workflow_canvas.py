@@ -280,16 +280,29 @@ class WorkflowCanvas(QGraphicsView):
                 NodeType.SQL_STATEMENT.value: (NodeType.SQL_STATEMENT, "SQL语句"),
             }
             
+            # 获取放置位置（场景坐标）
+            scene_pos = self.mapToScene(event.pos())
+            
+            # 生成唯一ID
+            import time
+            node_id = f"node_{int(time.time() * 1000)}"
+            
+            # 找到节点标题和类型
+            node_type = None
+            node_title = "未知节点"
+            
             if node_type_str in node_type_map:
                 node_type, node_title = node_type_map[node_type_str]
-                
-                # 获取放置位置（场景坐标）
-                scene_pos = self.mapToScene(event.pos())
-                
-                # 生成唯一ID
-                import time
-                node_id = f"node_{int(time.time() * 1000)}"
-                
+            else:
+                # 尝试从注册表获取外部节点
+                from src.core.node_registry import get_registry
+                registry = get_registry()
+                node_def = registry.get_node(node_type_str)
+                if node_def:
+                    node_type = node_type_str
+                    node_title = node_def.name
+            
+            if node_type:
                 # 创建节点图形项
                 from src.views.node_graphics import NodeGraphicsItem
                 node_item = NodeGraphicsItem(node_id, node_type, node_title)
@@ -302,7 +315,6 @@ class WorkflowCanvas(QGraphicsView):
                 self.node_added.emit(node_item)
                 
                 print(f"拖拽添加节点: {node_title} ({node_id}) at {scene_pos}")
-                
                 event.acceptProposedAction()
     
     def keyPressEvent(self, event):
@@ -339,7 +351,8 @@ class WorkflowCanvas(QGraphicsView):
         # 选中并高亮指定类型的节点
         for item in self._scene.items():
             if isinstance(item, NodeGraphicsItem):
-                if item.node_type.value == node_type:
+                curr_type = item.node_type.value if hasattr(item.node_type, "value") else str(item.node_type)
+                if curr_type == node_type:
                     item.setSelected(True)
     
     def select_nodes_by_ids(self, node_ids: list):
@@ -374,7 +387,7 @@ class WorkflowCanvas(QGraphicsView):
             if isinstance(item, NodeGraphicsItem):
                 nodes.append({
                     "node_id": item.node_id,
-                    "node_type": item.node_type.value,
+                    "node_type": item.node_type.value if hasattr(item.node_type, "value") else str(item.node_type),
                     "config": item.config
                 })
         

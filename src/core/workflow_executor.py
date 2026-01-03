@@ -87,7 +87,7 @@ class WorkflowExecutor:
         # 检查每个节点的定义，获取其 dependencies 列表
         seen_types = set()
         for node in self.nodes.values():
-            node_type_str = node.node_type if isinstance(node.node_type, str) else node.node_type.value
+            node_type_str = node.node_type.value if hasattr(node.node_type, "value") else str(node.node_type)
             if node_type_str in seen_types:
                 continue
                 

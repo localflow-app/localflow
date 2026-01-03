@@ -144,7 +144,7 @@ if __name__ == "__main__":
         """转换为字典"""
         return {
             "node_id": self.node_id,
-            "node_type": self.node_type.value,
+            "node_type": self.node_type.value if hasattr(self.node_type, "value") else str(self.node_type),
             "config": self.config,
             "inputs": self.inputs,
             "outputs": self.outputs

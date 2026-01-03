@@ -372,7 +372,20 @@ class MainWindow(QMainWindow):
                 NodeType.SQL_STATEMENT: "SQL语句",
             }
             
-            node_title = node_title_map.get(node_type, node_type.value)
+            # 找到标题
+            node_title = "未知节点"
+            if node_type in node_title_map:
+                node_title = node_title_map[node_type]
+            elif hasattr(node_type, "value") and node_type.value in node_title_map:
+                node_title = node_title_map[node_type.value]
+            else:
+                # 尝试从注册表获取
+                from src.core.node_registry import get_registry
+                node_def = get_registry().get_node(str(node_type.value if hasattr(node_type, "value") else node_type))
+                if node_def:
+                    node_title = node_def.name
+                else:
+                    node_title = str(node_type.value if hasattr(node_type, "value") else node_type)
             
             # 生成唯一ID
             node_id = f"node_{int(time.time() * 1000)}"
