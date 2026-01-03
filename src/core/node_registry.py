@@ -325,17 +325,23 @@ class NodeRegistry:
         
         # 更新内存中的源代码
         node.source_code = source_code
-        node.modified = True
         
-        # 持久化到文件
-        modified_dir = self._user_data_dir / "modified_nodes"
-        modified_dir.mkdir(parents=True, exist_ok=True)
-        
-        modified_file = modified_dir / f"{node_type}.py"
-        with open(modified_file, 'w', encoding='utf-8') as f:
-            f.write(source_code)
-        
-        return True
+        if node.source == NodeSource.CUSTOM:
+            # 自定义节点：直接保存到其目录
+            from src.core.custom_node_manager import CustomNodeManager
+            manager = CustomNodeManager(self._user_data_dir)
+            return manager.save_node(node_type, source_code)
+        else:
+            # 官方或其他节点：作为修改覆盖保存
+            node.modified = True
+            modified_dir = self._user_data_dir / "modified_nodes"
+            modified_dir.mkdir(parents=True, exist_ok=True)
+            
+            modified_file = modified_dir / f"{node_type}.py"
+            with open(modified_file, 'w', encoding='utf-8') as f:
+                f.write(source_code)
+            
+            return True
     
     def reset_to_original(self, node_type: str) -> bool:
         """重置为原始源代码"""

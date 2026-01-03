@@ -153,25 +153,115 @@ if __name__ == "__main__":
     @classmethod
     def from_dict(cls, data: dict) -> 'NodeBase':
         """从字典创建节点"""
-        node_type = NodeType(data["node_type"])
+        node_type_str = data["node_type"]
         
+        # 尝试转换为枚举
+        try:
+            node_type = NodeType(node_type_str)
+        except ValueError:
+            node_type = None
+            
         # 根据类型创建对应的节点实例
-        node_classes = {
-            NodeType.VARIABLE_ASSIGN: VariableAssignNode,
-            NodeType.VARIABLE_CALC: VariableCalcNode,
-            NodeType.SQLITE_CONNECT: SQLiteConnectNode,
-            NodeType.SQLITE_EXECUTE: SQLiteExecuteNode,
-            NodeType.SQL_STATEMENT: SQLStatementNode,
-        }
+        if node_type == NodeType.VARIABLE_ASSIGN:
+            node = VariableAssignNode(data["node_id"], data["config"])
+        elif node_type == NodeType.VARIABLE_CALC:
+            node = VariableCalcNode(data["node_id"], data["config"])
+        elif node_type == NodeType.SQLITE_CONNECT:
+            node = SQLiteConnectNode(data["node_id"], data["config"])
+        elif node_type == NodeType.SQLITE_EXECUTE:
+            node = SQLiteExecuteNode(data["node_id"], data["config"])
+        elif node_type == NodeType.SQL_STATEMENT:
+            node = SQLStatementNode(data["node_id"], data["config"])
+        else:
+            # 外部或自定义节点
+            from src.core.node_registry import get_registry
+            registry = get_registry()
+            node_def = registry.get_node(node_type_str)
+            
+            if node_def:
+                node = CustomNode(data["node_id"], node_type_str, data["config"])
+                # 注入源代码，供模板使用
+                node.source_code = node_def.source_code
+            else:
+                # 允许空节点占位，或者抛出异常
+                print(f"警告: 未找到节点类型 {node_type_str} 的定义，将作为通用自定义节点处理")
+                node = CustomNode(data["node_id"], node_type_str, data["config"])
         
-        node_class = node_classes.get(node_type)
-        if node_class:
-            node = node_class(data["node_id"], data["config"])
-            node.inputs = data.get("inputs", [])
-            node.outputs = data.get("outputs", [])
-            return node
+        node.inputs = data.get("inputs", [])
+        node.outputs = data.get("outputs", [])
+        return node
+
+
+class CustomNode(NodeBase):
+    """外部导入或自定义节点"""
+    
+    def __init__(self, node_id: str, node_type_str: str, config: dict = None):
+        # 注意：这里的 node_type 参数由于 NodeBase 的类型提示是 NodeType 枚举，
+        # 在运行时期我们传入字符串，IDE 可能会报错，但 Python 运行没问题。
+        # 为了规范，我们可以给 NodeBase.__init__ 的类型提示加 Union[NodeType, str]
+        super().__init__(node_id, node_type_str, config)
+        self.source_code = ""
+
+    def execute(self, input_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        在当前进程执行自定义节点
+        注意：复杂节点建议在虚拟环境中通过 generate_script 执行
+        """
+        # 这里可以使用 exec 实现本地执行，但出于安全和依赖考虑，
+        # 多数情况下应通过 WorkflowExecutor 的 Worker 模式运行生成后的脚本。
+        # 这里返回空或模拟
+        return {**input_data}
+
+    def _get_script_template(self) -> str:
+        """获取脚本模板（直接使用存储的源代码）"""
+        if not self.source_code:
+            from src.core.node_registry import get_registry
+            registry = get_registry()
+            # 这里 node_type 在 CustomNode 中是字符串
+            self.source_code = registry.get_source_code(self.node_type)
+            
+        # 查找 execute 函数的缩进并处理
+        # 我们的基础模板 expect $execute_code 已经在函数体内
+        # 而自定义节点的代码本身就是一个完整的 def execute(...)
+        # 所以我们需要调整基础模板或者调整插入策略
         
-        raise ValueError(f"未知的节点类型: {node_type}")
+        # 策略：如果自定义代码包含 'def execute', 我们需要一个更简单的基础模板
+        # 或者直接使用自定义代码作为脚本的主体，并包装 read_input/write_output
+        
+        return f'''#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+import json
+import sys
+
+# 节点配置
+NODE_CONFIG = {json.dumps(self.config, ensure_ascii=False, indent=2)}
+
+{self.source_code}
+
+def main():
+    try:
+        input_str = sys.stdin.read()
+        input_data = json.loads(input_str) if input_str else {{}}
+        
+        # 实例化一个哑对象来作为 self 传递（如果代码中的 execute 是类成员方法或者期待 self）
+        # 我们的模板通常写成 def execute(self, input_data):
+        class NodeShim:
+            def __init__(self, config):
+                self.config = config
+        
+        shim = NodeShim(NODE_CONFIG)
+        output_data = execute(shim, input_data)
+        
+        print("###JSON_OUTPUT###")
+        print(json.dumps(output_data, ensure_ascii=False))
+        print("###JSON_OUTPUT_END###")
+    except Exception as e:
+        print(f"Error: {{e}}", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
+'''
 
 
 class VariableAssignNode(NodeBase):

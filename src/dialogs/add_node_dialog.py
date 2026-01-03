@@ -167,12 +167,13 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入 GitHub 仓库 URL")
                 return
             
-            # GitHub 导入功能待实现
-            QMessageBox.warning(
+            # GitHub 导入功能将在 Phase 2 实现
+            QMessageBox.information(
                 self, 
-                "功能待实现", 
-                f"GitHub 节点导入功能尚未实现。\n\n仓库: {url}"
+                "功能预留", 
+                f"GitHub 节点导入功能将在 Phase 2 完善。\n\n仓库: {url}"
             )
+            self.accept()
             return
             
         elif selected_id == 2:
@@ -182,12 +183,13 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入内网 Git 仓库 URL")
                 return
             
-            # 内网导入功能待实现
-            QMessageBox.warning(
+            # 内网导入功能将在 Phase 3 实现
+            QMessageBox.information(
                 self, 
-                "功能待实现", 
-                f"内网节点导入功能尚未实现。\n\n仓库: {url}"
+                "功能预留", 
+                f"内网节点导入功能将在 Phase 3 完善。\n\n仓库: {url}"
             )
+            self.accept()
             return
             
         elif selected_id == 3:
@@ -199,12 +201,23 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入节点名称")
                 return
             
-            # 自定义节点创建功能待实现
-            QMessageBox.warning(
-                self, 
-                "功能待实现", 
-                f"自定义节点创建功能尚未实现。\n\n"
-                f"节点名称: {name}\n"
-                f"节点描述: {desc or '(无)'}"
-            )
-            return
+            try:
+                from src.core.node_registry import get_registry
+                from src.core.custom_node_manager import CustomNodeManager
+                
+                registry = get_registry()
+                manager = CustomNodeManager(registry._user_data_dir)
+                
+                node_def = manager.create_node(name, desc)
+                if node_def:
+                    registry.register_external_node(node_def)
+                    QMessageBox.information(
+                        self, 
+                        "成功", 
+                        f"自定义节点 '{name}' 创建成功！\n请在节点浏览器的'自定义'分类下查看并编辑。"
+                    )
+                    self.accept()
+                else:
+                    QMessageBox.critical(self, "错误", "创建节点失败，请重试。")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"创建节点过程中发生异常: {str(e)}")
