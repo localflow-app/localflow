@@ -167,13 +167,25 @@ class AddNodeDialog(QDialog):
                 QMessageBox.warning(self, "提示", "请输入 GitHub 仓库 URL")
                 return
             
-            # GitHub 导入功能将在 Phase 2 实现
-            QMessageBox.information(
-                self, 
-                "功能预留", 
-                f"GitHub 节点导入功能将在 Phase 2 完善。\n\n仓库: {url}"
-            )
-            self.accept()
+            try:
+                from src.core.node_registry import get_registry
+                from src.core.providers.github_provider import GitHubNodeProvider
+                
+                registry = get_registry()
+                provider = GitHubNodeProvider(registry._user_data_dir)
+                
+                node_def = provider.download_node(url)
+                if node_def:
+                    QMessageBox.information(
+                        self, 
+                        "成功", 
+                        f"GitHub 节点 '{node_def.name}' 导入成功！\n请在节点浏览器的'GitHub'分类下查看。"
+                    )
+                    self.accept()
+                else:
+                    QMessageBox.critical(self, "错误", "无法从提供的 URL 导入节点，请检查 URL 是否正确。")
+            except Exception as e:
+                QMessageBox.critical(self, "错误", f"导入 GitHub 节点过程中发生异常: {str(e)}")
             return
             
         elif selected_id == 2:

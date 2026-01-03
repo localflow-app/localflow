@@ -203,18 +203,19 @@ class NodePropertiesWidget(QWidget):
         apply_btn.clicked.connect(self._apply_changes)
         button_layout.addWidget(apply_btn)
         
-        # 针对自定义节点的额外操作
+        # 针对外部节点或自定义节点的额外操作
         registry = get_registry()
         node_def = registry.get_node(node_type.value)
-        if node_def and node_def.source == NodeSource.CUSTOM:
-            export_btn = QPushButton("📦 导出节点")
-            export_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
-            export_btn.clicked.connect(self._export_custom_node)
-            button_layout.addWidget(export_btn)
+        if node_def and node_def.source in [NodeSource.CUSTOM, NodeSource.GITHUB]:
+            if node_def.source == NodeSource.CUSTOM:
+                export_btn = QPushButton("📦 导出节点")
+                export_btn.setStyleSheet(ThemeManager.get_button_style("secondary"))
+                export_btn.clicked.connect(self._export_custom_node)
+                button_layout.addWidget(export_btn)
             
             delete_btn = QPushButton("🗑️ 删除节点")
             delete_btn.setStyleSheet(ThemeManager.get_button_style("danger") if hasattr(ThemeManager, "get_button_style") else "")
-            delete_btn.clicked.connect(self._delete_custom_node)
+            delete_btn.clicked.connect(self._delete_external_node)
             button_layout.addWidget(delete_btn)
         
         self.content_layout.addLayout(button_layout)
@@ -501,31 +502,42 @@ class NodePropertiesWidget(QWidget):
             else:
                 QMessageBox.critical(self, "导出失败", "导出节点过程中发生错误。")
 
-    def _delete_custom_node(self):
-        """删除自定义节点"""
+    def _delete_external_node(self):
+        """删除外部或自定义节点"""
         if not self._current_node_type_for_source:
             return
             
+        registry = get_registry()
+        node_def = registry.get_node(self._current_node_type_for_source)
+        if not node_def:
+            return
+            
+        source_name = "GitHub" if node_def.source == NodeSource.GITHUB else "自定义"
         reply = QMessageBox.question(
             self, 
             "确认删除", 
-            f"确定要永久删除自定义节点 '{self._current_node_type_for_source}' 吗？\n\n此操作不可撤销。",
+            f"确定要永久删除{source_name}节点 '{node_def.name}' 吗？\n\n此操作不可撤销。",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.No
         )
         
         if reply == QMessageBox.Yes:
-            from src.core.custom_node_manager import CustomNodeManager
-            registry = get_registry()
-            manager = CustomNodeManager(registry._user_data_dir)
-            
-            if manager.delete_node(self._current_node_type_for_source):
+            success = False
+            if node_def.source == NodeSource.CUSTOM:
+                from src.core.custom_node_manager import CustomNodeManager
+                manager = CustomNodeManager(registry._user_data_dir)
+                success = manager.delete_node(self._current_node_type_for_source)
+            elif node_def.source == NodeSource.GITHUB:
+                from src.core.providers.github_provider import GitHubNodeProvider
+                provider = GitHubNodeProvider(registry._user_data_dir)
+                success = provider.delete_node(self._current_node_type_for_source)
+                
+            if success:
                 registry.unregister_node(self._current_node_type_for_source)
                 QMessageBox.information(self, "删除成功", "节点已成功删除。")
                 self.clear_properties()
                 
                 # 尝试通知节点浏览器刷新
-                # 向上寻找主窗口并尝试触发刷新
                 widget = self.parent()
                 while widget:
                     if hasattr(widget, 'node_browser'):
